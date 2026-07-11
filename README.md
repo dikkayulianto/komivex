@@ -1,6 +1,6 @@
 # 🚀 Komivex
 
-Modern Comic Platform powered by AI.
+Modern Comic Platform 
 
 ---
 
