@@ -48,6 +48,16 @@ def parse_card(part):
     if not cover_match:
         cover_match = re.search(r'<noscript><img[^>]+src="([^"]+)"', part)
         
+    cover = "/assets/manga_cover_1.jpg"
+    if cover_match:
+        cover = cover_match.group(1)
+    else:
+        img_srcs = re.findall(r'<img[^>]+src="([^"]+)"', part)
+        for src in img_srcs:
+            if not src.startswith('data:'):
+                cover = src
+                break
+        
     type_match = re.search(r'class="typeflag\s*([^"]+)"', part)
     
     # Match rating
@@ -71,7 +81,6 @@ def parse_card(part):
 
     slug = slug_match.group(1) if slug_match else "unknown"
     title = title_match.group(1).strip() if title_match else slug.replace('-', ' ').title()
-    cover = cover_match.group(1) if cover_match else "/assets/manga_cover_1.jpg"
     manga_type = type_match.group(1).strip() if type_match else "Manga"
     rating = float(rating_match.group(1)) if rating_match else 7.5
 

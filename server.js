@@ -1,6 +1,9 @@
 const express = require('express');
 const axios = require('axios');
 const path = require('path');
+const dns = require('dns');
+
+dns.setDefaultResultOrder('ipv4first');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
