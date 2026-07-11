@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="KomikID - Baca Manga, Manhua, dan Manhwa Terpopuler Terlengkap Bahasa Indonesia">
+    <title>KomikID - Baca Manga Terpopuler</title>
+    <!-- Google Fonts: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Link to Stylesheet -->
+    <link rel="stylesheet" href="styles.css?v=10">
+</head>
+<body class="dark-theme">
+    <!-- Background Blob Glows -->
+    <div class="blob-glow blob-1"></div>
+    <div class="blob-glow blob-2"></div>
+
+    <!-- Header Navigation -->
+    <header class="navbar-header">
+        <div class="navbar-container">
+            <!-- Logo -->
+            <a href="#" class="logo-link" id="logo-btn">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 22h20L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        <path d="M12 6L5.5 19h13L12 6z" fill="currentColor"/>
+                        <circle cx="12" cy="14" r="2" fill="var(--bg-primary)"/>
+                    </svg>
+                </div>
+                <span class="logo-text">Komik<span class="logo-highlight">ID</span></span>
+            </a>
+
+            <!-- Navigation Links -->
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="home" id="nav-home">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                    <span>Home</span>
+                </button>
+                <button class="nav-item" data-tab="manga">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        <path d="M6.5 20v-16H20v16H6.5A2.5 2.5 0 0 1 4 19.5z"/>
+                    </svg>
+                    <span>Manga & Manhwa</span>
+                </button>
+                <button class="nav-item" data-tab="library" id="nav-library">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <span>Library</span>
+                </button>
+            </nav>
+
+            <!-- Search and Actions -->
+            <div class="nav-actions">
+                <!-- Search Box -->
+                <div class="search-box" id="search-box-wrapper">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    <input type="text" placeholder="Cari manga..." id="search-input" autocomplete="off">
+                    <button class="search-clear-btn" id="search-clear" style="display: none;">&times;</button>
+                    <!-- Search Suggestions Dropdown -->
+                    <div class="search-dropdown" id="search-dropdown" style="display: none;"></div>
+                </div>
+
+                <!-- Filter Toggle Button -->
+                <button class="action-circle-btn" id="filter-toggle-btn" title="Filter Lanjutan">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="4" y1="21" x2="4" y2="14"/>
+                        <line x1="4" y1="10" x2="4" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="12"/>
+                        <line x1="12" y1="8" x2="12" y2="3"/>
+                        <line x1="20" y1="21" x2="20" y2="16"/>
+                        <line x1="20" y1="12" x2="20" y2="3"/>
+                        <line x1="1" y1="14" x2="7" y2="14"/>
+                        <line x1="9" y1="8" x2="15" y2="8"/>
+                        <line x1="17" y1="16" x2="23" y2="16"/>
+                    </svg>
+                </button>
+
+                <!-- Theme Toggle Button -->
+                <button class="action-circle-btn" id="theme-toggle-btn" title="Ganti Tema">
+                    <!-- Sun Icon (visible in Dark theme) -->
+                    <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    <!-- Moon Icon (visible in Light theme) -->
+                    <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </button>
+
+                <!-- Login Button -->
+                <button class="login-btn" id="login-modal-btn">Masuk</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Expanded Filter Panel -->
+    <div class="filter-panel-wrapper" id="filter-panel">
+        <div class="filter-panel-container">
+            <div class="filter-group">
+                <span class="filter-label">Tipe:</span>
+                <div class="filter-options" id="filter-type">
+                    <button class="filter-opt active" data-value="all">Semua</button>
+                    <button class="filter-opt" data-value="Manga">Manga</button>
+                    <button class="filter-opt" data-value="Manhua">Manhua</button>
+                    <button class="filter-opt" data-value="Manhwa">Manhwa</button>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <span class="filter-label">Genre:</span>
+                <div class="filter-options" id="filter-genre">
+                    <button class="filter-opt active" data-value="all">Semua</button>
+                    <button class="filter-opt" data-value="Action">Action</button>
+                    <button class="filter-opt" data-value="Fantasy">Fantasy</button>
+                    <button class="filter-opt" data-value="Adventure">Adventure</button>
+                    <button class="filter-opt" data-value="Romance">Romance</button>
+                    <button class="filter-opt" data-value="Comedy">Comedy</button>
+                    <button class="filter-opt" data-value="Sports">Sports</button>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <span class="filter-label">Urutkan:</span>
+                <div class="filter-options" id="filter-sort">
+                    <button class="filter-opt active" data-value="rating">Rating Tertinggi</button>
+                    <button class="filter-opt" data-value="rank">Populer (Rank)</button>
+                    <button class="filter-opt" data-value="alphabet">Abjad (A-Z)</button>
+                </div>
+            </div>
+            
+            <div class="filter-actions">
+                <button class="btn-secondary" id="filter-reset-btn">Reset Filter</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="main-content">
+        
+        <!-- HOME VIEW -->
+        <section id="home-view" class="tab-content active">
+            <!-- Popular Section -->
+            <div class="section-container">
+                <div class="section-header">
+                    <div class="section-title-wrapper">
+                        <span class="section-indicator"></span>
+                        <h2 class="section-title">Manga <span class="highlight-title">Populer</span></h2>
+                        <span class="section-icon">📖</span>
+                    </div>
+                </div>
+
+                <!-- Popular manga carousel wrapper -->
+                <div class="carousel-wrapper" id="popular-carousel-wrapper">
+                    <button class="carousel-nav-btn prev-btn" id="popular-prev-btn" aria-label="Sebelumnya">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="15 18 9 12 15 6"/>
+                        </svg>
+                    </button>
+                    
+                    <div class="manga-grid-carousel" id="popular-grid">
+                        <!-- Dynamic rendering by app.js -->
+                    </div>
+                    
+                    <button class="carousel-nav-btn next-btn" id="popular-next-btn" aria-label="Berikutnya">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Show all popular button -->
+                <div class="load-more-container">
+                    <button class="load-more-btn" id="toggle-popular-btn">
+                        <span>Lihat Semua Manga</span>
+                        <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                            <polyline points="12 5 19 12 12 19"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Latest Update Section -->
+            <div class="section-container update-section">
+                <div class="section-header">
+                    <div class="section-title-wrapper">
+                        <span class="section-icon">📖</span>
+                        <h2 class="section-title">Update Manga Terbaru</h2>
+                    </div>
+                    <a href="#" class="view-all-link" id="view-all-updates">
+                        <span>Lihat Semua</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                    </a>
+                </div>
+                
+                <!-- Updates list layout -->
+                <div class="updates-grid" id="updates-grid">
+                    <!-- Dynamic rendering by app.js -->
+                </div>
+            </div>
+        </section>
+
+        <!-- MANGA VIEW (PAGINATED DIRECTORY) -->
+        <section id="manga-view" class="tab-content">
+            <div class="section-container">
+                <div class="section-header">
+                    <div class="section-title-wrapper">
+                        <span class="section-indicator"></span>
+                        <h2 class="section-title">Daftar Manga</h2>
+                        <span class="section-icon">📚</span>
+                    </div>
+                </div>
+                
+                <!-- Paginated grid -->
+                <div class="manga-grid" id="directory-grid">
+                    <!-- Dynamic rendering by app.js -->
+                </div>
+                
+                <!-- Pagination navigation bar -->
+                <div id="directory-pagination" class="pagination-controls"></div>
+            </div>
+        </section>
+
+        <!-- LIBRARY VIEW -->
+        <section id="library-view" class="tab-content">
+            <div class="section-container">
+                <div class="section-header">
+                    <div class="section-title-wrapper">
+                        <span class="section-indicator"></span>
+                        <h2 class="section-title">Library Saya</h2>
+                        <span class="section-icon">📚</span>
+                    </div>
+                </div>
+                <div class="manga-grid" id="library-grid">
+                    <!-- Dynamic rendering by app.js -->
+                </div>
+                
+                <!-- Library empty message -->
+                <div class="library-empty-state" id="library-empty-msg" style="display: none; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center; color: var(--text-secondary); background: var(--bg-secondary); border-radius: 16px; border: 1px dashed var(--border-color); gap: 16px;">
+                    <div style="font-size: 48px;">📚</div>
+                    <h3 style="font-size: 18px; color: var(--text-primary);">Library Kamu Masih Kosong</h3>
+                    <p style="font-size: 14px; max-width: 400px; margin: 0 auto;">Mulai simpan manga favoritmu dengan menekan tombol "Simpan ke Library" pada detail manga.</p>
+                    <button class="btn-primary" id="library-back-home" style="margin-top: 8px;">Cari Manga</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-info">
+                <div class="logo-link">
+                    <div class="logo-icon">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2L2 22h20L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                            <path d="M12 6L5.5 19h13L12 6z" fill="currentColor"/>
+                        </svg>
+                    </div>
+                    <span class="logo-text">Komik<span class="logo-highlight">ID</span></span>
+                </div>
+                <p class="footer-desc">Platform baca komik (Manga, Manhua, Manhwa) terpopuler dan terlengkap gratis bahasa Indonesia dengan antarmuka modern dan premium.</p>
+            </div>
+            
+            <div class="footer-links">
+                <div class="links-column">
+                    <h4>Navigasi</h4>
+                    <a href="#" class="footer-nav-link" data-tab="home">Home</a>
+                    <a href="#" class="footer-nav-link" data-tab="manga">Manga & Manhwa</a>
+                    <a href="#" class="footer-nav-link" data-tab="library">Library</a>
+                </div>
+                <div class="links-column">
+                    <h4>Jenis</h4>
+                    <a href="#" class="footer-filter-link" data-type="Manga">Manga (Jepang)</a>
+                    <a href="#" class="footer-filter-link" data-type="Manhwa">Manhwa (Korea)</a>
+                    <a href="#" class="footer-filter-link" data-type="Manhua">Manhua (China)</a>
+                </div>
+                <div class="links-column">
+                    <h4>Komunitas</h4>
+                    <a href="#">Discord</a>
+                    <a href="#">Telegram</a>
+                    <a href="#">Facebook</a>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 KomikID Clone. Dibuat dengan antarmuka premium & penuh dedikasi.</p>
+        </div>
+    </footer>
+
+    <!-- DETAILED MANGA MODAL -->
+    <div class="modal-backdrop" id="detail-modal">
+        <div class="modal-card manga-detail-card">
+            <button class="modal-close-btn" id="detail-close-btn">&times;</button>
+            <div class="detail-header-banner" id="detail-banner">
+                <!-- Dynamic gradient background matching cover -->
+            </div>
+            <div class="detail-content-wrapper">
+                <div class="detail-left">
+                    <img src="" alt="Manga Cover" class="detail-cover-img" id="detail-cover">
+                    <button class="bookmark-toggle-btn" id="bookmark-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        <span id="bookmark-text">Simpan ke Library</span>
+                    </button>
+                </div>
+                <div class="detail-right">
+                    <div class="detail-type-badge-row">
+                        <span class="manga-type-badge" id="detail-type">Manga</span>
+                        <span class="detail-rating-badge">
+                            <span>⭐</span>
+                            <span id="detail-rating">9.0</span>
+                        </span>
+                        <span class="detail-rank-badge">
+                            <span>Rank #</span><span id="detail-rank">1</span>
+                        </span>
+                    </div>
+                    <h1 class="detail-title" id="detail-title">One Piece</h1>
+                    <p class="detail-author" id="detail-author">Oleh Eiichiro Oda</p>
+                    <div class="detail-genres" id="detail-genres">
+                        <!-- Genre tags render here -->
+                    </div>
+                    <div class="detail-synopsis-section">
+                        <h3>Sinopsis</h3>
+                        <p class="detail-synopsis" id="detail-synopsis">...</p>
+                    </div>
+                    <div class="detail-chapters-section">
+                        <div class="chapters-header">
+                            <h3>Daftar Chapter</h3>
+                            <span class="chapters-count" id="detail-chapters-count">0 Chapter</span>
+                        </div>
+                        <div class="chapters-list" id="detail-chapters-list">
+                            <!-- Dynamic chapters -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MANGA READER VIEW -->
+    <section id="reader-view" class="tab-content">
+        <!-- Reader sticky top bar -->
+        <div class="reader-header">
+            <div class="reader-header-left">
+                <button class="action-circle-btn" id="reader-back-btn" title="Kembali ke Detail">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 20px; height: 20px;">
+                        <line x1="19" y1="12" x2="5" y2="12"/>
+                        <polyline points="12 19 5 12 12 5"/>
+                    </svg>
+                </button>
+                <div class="reader-manga-info">
+                    <h2 class="reader-title" id="reader-manga-title">Manga Title</h2>
+                    <span class="reader-chapter-title" id="reader-chapter-title">Chapter X</span>
+                </div>
+            </div>
+            <div class="reader-header-right">
+                <!-- Chapter Selector Dropdown -->
+                <select class="reader-select" id="reader-chapter-select">
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+        </div>
+        
+        <!-- Reading images container -->
+        <div class="reader-container">
+            <div class="reader-images-wrapper" id="reader-images-container">
+                <!-- Images rendered dynamically -->
+            </div>
+        </div>
+        
+        <!-- Reader bottom navigation bar -->
+        <div class="reader-navigation">
+            <button class="page-btn" id="reader-prev-chapter-btn">Sebelumnya</button>
+            <button class="page-btn btn-secondary" id="reader-bottom-back-btn">Kembali ke Detail</button>
+            <button class="page-btn" id="reader-next-chapter-btn">Selanjutnya</button>
+        </div>
+    </section>
+
+    <!-- Login/Register Modal -->
+    <div class="modal-overlay" id="login-modal">
+        <div class="modal-card login-card">
+            <button class="modal-close-btn" id="login-close-btn">&times;</button>
+            <div class="login-header">
+                <div class="logo-link">
+                    <div class="logo-icon">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2L2 22h20L12 2z" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 6L5.5 19h13L12 6z" fill="currentColor"/>
+                        </svg>
+                    </div>
+                    <span class="logo-text">Komik<span class="logo-highlight">ID</span></span>
+                </div>
+                <h2>Selamat Datang Kembali</h2>
+                <p>Masuk untuk sinkronisasi library dan riwayat membacamu.</p>
+            </div>
+            
+            <form class="login-form" id="login-form">
+                <div class="form-group">
+                    <label for="login-email">Alamat Email</label>
+                    <input type="email" id="login-email" required placeholder="nama@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" required placeholder="••••••••">
+                </div>
+                <div class="form-actions-row">
+                    <label class="remember-me">
+                        <input type="checkbox"> Ingat Saya
+                    </label>
+                    <a href="#" class="forgot-pass">Lupa Password?</a>
+                </div>
+                <button type="submit" class="btn-primary w-full">Masuk</button>
+            </form>
+
+            <div class="login-footer">
+                <p>Belum punya akun? <a href="#" id="register-link">Daftar sekarang</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM NAVIGATION (Mobile Only) -->
+    <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+        <button class="mobile-nav-item active" data-tab="home" id="mob-nav-home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            <span>Home</span>
+        </button>
+        <button class="mobile-nav-item" data-tab="manga" id="mob-nav-manga">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                <path d="M6.5 20v-16H20v16H6.5A2.5 2.5 0 0 1 4 19.5z"/>
+            </svg>
+            <span>Manga</span>
+        </button>
+        <button class="mobile-nav-item mobile-nav-search-btn" id="mob-nav-search">
+            <div class="mobile-nav-search-bubble">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+            </div>
+            <span>Cari</span>
+        </button>
+        <button class="mobile-nav-item" data-tab="library" id="mob-nav-library">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span>Library</span>
+        </button>
+        <button class="mobile-nav-item" id="mob-nav-theme">
+            <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5"/>
+                <line x1="12" y1="1" x2="12" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/>
+                <line x1="21" y1="12" x2="23" y2="12"/>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+            <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span>Tema</span>
+        </button>
+    </nav>
+
+    <!-- MOBILE SEARCH OVERLAY -->
+    <div class="mobile-search-overlay" id="mobile-search-overlay">
+        <div class="mobile-search-bar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mob-search-icon">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="mobile-search-input" placeholder="Cari manga, manhwa, manhua..." autocomplete="off">
+            <button id="mobile-search-close">✕</button>
+        </div>
+        <div class="mobile-search-results" id="mobile-search-results">
+            <div class="mobile-search-hint">
+                <div style="font-size:40px;margin-bottom:12px;">🔍</div>
+                <p>Ketik untuk mencari manga favoritmu</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Link to JavaScript -->
+    <script src="app.js?v=10"></script>
+</body>
+</html>
