@@ -929,6 +929,8 @@ async function openChapterReader(mangaId, chapterNumber) {
     currentTab = "reader";
     const footer = document.querySelector(".footer");
     if (footer) footer.style.display = "none";
+    const mobileNav = document.getElementById("mobile-bottom-nav");
+    if (mobileNav) mobileNav.style.display = "none";
 
     document.querySelectorAll(".nav-menu .nav-item").forEach(item => {
         item.classList.remove("active");
@@ -1063,9 +1065,11 @@ async function openChapterReader(mangaId, chapterNumber) {
 }
 
 const goBackFromReader = () => {
-    // Show footer on normal tabs
+    // Show footer and mobile bottom nav on normal tabs
     const footer = document.querySelector(".footer");
-    if (footer) footer.style.display = "block";
+    if (footer) footer.style.display = "";
+    const mobileNav = document.getElementById("mobile-bottom-nav");
+    if (mobileNav) mobileNav.style.display = "";
 
     // Switch back to details view or home
     if (currentMangaIdForReader) {
@@ -1138,9 +1142,11 @@ function showToast(message, type = "success") {
 function switchTab(tabName) {
     currentTab = tabName;
     
-    // Show footer on normal tabs
+    // Show footer and mobile bottom nav on normal tabs
     const footer = document.querySelector(".footer");
-    if (footer) footer.style.display = "block";
+    if (footer) footer.style.display = "";
+    const mobileNav = document.getElementById("mobile-bottom-nav");
+    if (mobileNav) mobileNav.style.display = "";
     
     document.querySelectorAll(".nav-menu .nav-item").forEach(item => {
         if (item.getAttribute("data-tab") === tabName) {
