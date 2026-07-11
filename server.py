@@ -78,6 +78,9 @@ def parse_card(part):
     if cover.startswith('//'):
         cover = 'https:' + cover
 
+    if cover.startswith('http'):
+        cover = f"/api/proxy-img?url={urllib.parse.quote(cover)}"
+
     return {
         "id": slug,
         "title": title,
@@ -110,6 +113,9 @@ def scrape_details(slug):
             cover = cover_match.group(1) if cover_match else "/assets/manga_cover_1.jpg"
             if cover.startswith('//'):
                 cover = 'https:' + cover
+
+            if cover.startswith('http'):
+                cover = f"/api/proxy-img?url={urllib.parse.quote(cover)}"
                 
             # Synopsis
             syn_match = re.search(r'class="[^"]*entry-content[^"]*" itemprop="description">([\s\S]*?)</div>', content)
