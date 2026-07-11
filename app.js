@@ -1009,7 +1009,11 @@ async function openChapterReader(mangaId, chapterNumber) {
                 images.forEach((imgUrl, index) => {
                     const img = document.createElement("img");
                     img.className = "reader-img";
-                    img.src = `/api/proxy-img?url=${encodeURIComponent(imgUrl)}`;
+                    if (imgUrl.startsWith("/api/proxy-img")) {
+                        img.src = imgUrl;
+                    } else {
+                        img.src = `/api/proxy-img?url=${encodeURIComponent(imgUrl)}`;
+                    }
                     img.alt = `Halaman ${index + 1}`;
                     img.loading = "lazy";
                     img.onerror = () => {
