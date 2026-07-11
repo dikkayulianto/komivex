@@ -575,7 +575,7 @@ async function renderMangaDirectory(page = 1) {
         console.error("Failed to load manga directory: ", err);
         directoryGrid.innerHTML = `
             <div class="grid-empty-message" style="grid-column: 1 / -1; text-align: center; padding: 40px 0; color: var(--text-secondary);">
-                <h3>Gagal memuat data dari komikid.net. Silakan coba lagi.</h3>
+                <h3>Gagal memuat data dari server. Silakan coba lagi.</h3>
             </div>
         `;
     }
