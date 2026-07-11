@@ -760,7 +760,7 @@ document.addEventListener("click", (e) => {
 
 
 // 7. Modals Logic
-function openMangaDetail(mangaId) {
+async function openMangaDetail(mangaId) {
     // Find manga from details lookup cache, or fallback database, or library bookmarks
     let manga = mangaDetailsCache[mangaId];
     if (!manga) {
@@ -769,9 +769,40 @@ function openMangaDetail(mangaId) {
     if (!manga) {
         manga = fallbackDatabase.find(m => m.id === mangaId);
     }
-    if (!manga) return;
 
-    // Set cover and banner backgrounds
+    // Populate initial (possibly partial) data and show modal
+    if (manga) {
+        renderModalData(manga);
+    } else {
+        // Show loading template inside modal
+        document.getElementById("detail-title").textContent = "Memuat...";
+        document.getElementById("detail-author").textContent = "";
+        document.getElementById("detail-synopsis").textContent = "Sedang mengambil data terbaru dari server...";
+        document.getElementById("detail-rating").textContent = "0.0";
+        document.getElementById("detail-rank").textContent = "99";
+        document.getElementById("detail-genres").innerHTML = "";
+        document.getElementById("detail-chapters-list").innerHTML = "";
+    }
+
+    detailModal.classList.add("open");
+    document.body.style.overflow = "hidden";
+
+    // Dynamically fetch full real-time details from bacakomik.my
+    try {
+        const res = await fetch(`/api/manga?id=${encodeURIComponent(mangaId)}`);
+        if (res.ok) {
+            const fullManga = await res.json();
+            if (fullManga && !fullManga.error) {
+                mangaDetailsCache[mangaId] = fullManga;
+                renderModalData(fullManga);
+            }
+        }
+    } catch (err) {
+        console.error("Gagal mengambil detail manga:", err);
+    }
+}
+
+function renderModalData(manga) {
     const detailCover = document.getElementById("detail-cover");
     detailCover.src = manga.cover;
     detailCover.alt = manga.title;
@@ -781,14 +812,12 @@ function openMangaDetail(mangaId) {
     detailBanner.style.backgroundSize = "cover";
     detailBanner.style.backgroundPosition = "center";
 
-    // Texts
     document.getElementById("detail-title").textContent = manga.title;
-    document.getElementById("detail-author").textContent = `Oleh ${manga.author}`;
-    document.getElementById("detail-synopsis").textContent = manga.synopsis;
+    document.getElementById("detail-author").textContent = manga.author ? `Oleh ${manga.author}` : "Oleh Unknown";
+    document.getElementById("detail-synopsis").textContent = manga.synopsis || "Sinopsis tidak tersedia.";
     document.getElementById("detail-rating").textContent = (parseFloat(manga.rating) || 0).toFixed(1);
-    document.getElementById("detail-rank").textContent = manga.rank;
-    
-    // Badge styles
+    document.getElementById("detail-rank").textContent = manga.rank || 99;
+
     const typeBadge = document.getElementById("detail-type");
     typeBadge.textContent = manga.type;
     typeBadge.className = `manga-type-badge ${manga.type.toLowerCase()}`;
@@ -796,25 +825,19 @@ function openMangaDetail(mangaId) {
     else if (manga.type === "Manhua") typeBadge.style.backgroundColor = "var(--tag-manhua)";
     else if (manga.type === "Manhwa") typeBadge.style.backgroundColor = "var(--tag-manhwa)";
 
-    // Genres Tags
     const genresContainer = document.getElementById("detail-genres");
     genresContainer.innerHTML = "";
-    manga.genres.forEach(genre => {
-        const tag = document.createElement("span");
-        tag.className = "genre-tag";
-        tag.textContent = genre;
-        genresContainer.appendChild(tag);
-    });
+    if (manga.genres) {
+        manga.genres.forEach(genre => {
+            const tag = document.createElement("span");
+            tag.className = "genre-tag";
+            tag.textContent = genre;
+            genresContainer.appendChild(tag);
+        });
+    }
 
-    // Bookmark configuration
-    updateBookmarkBtnUI(mangaId, manga);
-
-    // Interactive chapters rendering
+    updateBookmarkBtnUI(manga.id, manga);
     renderChaptersList(manga);
-
-    // Display modal
-    detailModal.classList.add("open");
-    document.body.style.overflow = "hidden";
 }
 
 function closeMangaDetail() {
@@ -826,37 +849,54 @@ function renderChaptersList(manga) {
     const chaptersContainer = document.getElementById("detail-chapters-list");
     chaptersContainer.innerHTML = "";
 
-    // latestChapter bisa berupa angka besar (e.g. 1186) atau string
-    // Tampilkan maks 20 chapter terbaru saja untuk performa
-    const latestNum = parseInt(manga.latestChapter) || 0;
-    const displayCount = Math.min(20, latestNum);
-    document.getElementById("detail-chapters-count").textContent = `${latestNum} Chapter`;
-
     const userReadList = readChapters[manga.id] || [];
 
-    if (displayCount === 0) {
-        chaptersContainer.innerHTML = `<p style="color:var(--text-secondary);padding:16px;font-size:13px;">Daftar chapter tidak tersedia.</p>`;
-        return;
-    }
-
-    for (let i = 0; i < displayCount; i++) {
-        const chNum = latestNum - i;
-        if (chNum <= 0) break;
-
-        const item = document.createElement("div");
-        item.className = `chapter-item ${userReadList.includes(chNum) ? 'read' : ''}`;
+    if (manga.chapters && manga.chapters.length > 0) {
+        document.getElementById("detail-chapters-count").textContent = `${manga.chapters.length} Chapter`;
         
-        item.innerHTML = `
-            <span class="chapter-name">Chapter ${chNum}</span>
-            <span class="chapter-date">${i === 0 ? 'Terbaru' : (i * 2) + ' hari lalu'}</span>
-        `;
-
-        item.addEventListener("click", () => {
-            closeMangaDetail();
-            openChapterReader(manga.id, chNum);
+        // Show first 20 chapters for performance
+        const displayList = manga.chapters.slice(0, 20);
+        displayList.forEach(ch => {
+            const item = document.createElement("div");
+            item.className = `chapter-item ${userReadList.includes(ch.chapter_number) ? 'read' : ''}`;
+            item.innerHTML = `
+                <span class="chapter-name">${ch.title}</span>
+                <span class="chapter-date">Terbaru</span>
+            `;
+            item.addEventListener("click", () => {
+                closeMangaDetail();
+                openChapterReader(manga.id, ch.chapter_number);
+            });
+            chaptersContainer.appendChild(item);
         });
+    } else {
+        const latestNum = parseInt(manga.latestChapter) || 0;
+        const displayCount = Math.min(20, latestNum);
+        document.getElementById("detail-chapters-count").textContent = `${latestNum} Chapter`;
 
-        chaptersContainer.appendChild(item);
+        if (displayCount === 0) {
+            chaptersContainer.innerHTML = `<p style="color:var(--text-secondary);padding:16px;font-size:13px;">Daftar chapter tidak tersedia.</p>`;
+            return;
+        }
+
+        for (let i = 0; i < displayCount; i++) {
+            const chNum = latestNum - i;
+            if (chNum <= 0) break;
+
+            const item = document.createElement("div");
+            item.className = `chapter-item ${userReadList.includes(chNum) ? 'read' : ''}`;
+            item.innerHTML = `
+                <span class="chapter-name">Chapter ${chNum}</span>
+                <span class="chapter-date">${i === 0 ? 'Terbaru' : (i * 2) + ' hari lalu'}</span>
+            `;
+
+            item.addEventListener("click", () => {
+                closeMangaDetail();
+                openChapterReader(manga.id, chNum);
+            });
+
+            chaptersContainer.appendChild(item);
+        }
     }
 }
 
@@ -887,6 +927,9 @@ async function openChapterReader(mangaId, chapterNumber) {
     
     // Switch active tab to reader-view
     currentTab = "reader";
+    const footer = document.querySelector(".footer");
+    if (footer) footer.style.display = "none";
+
     document.querySelectorAll(".nav-menu .nav-item").forEach(item => {
         item.classList.remove("active");
     });
@@ -1016,6 +1059,10 @@ async function openChapterReader(mangaId, chapterNumber) {
 }
 
 const goBackFromReader = () => {
+    // Show footer on normal tabs
+    const footer = document.querySelector(".footer");
+    if (footer) footer.style.display = "block";
+
     // Switch back to details view or home
     if (currentMangaIdForReader) {
         // Switch tab to home/manga (depending on where they were, or default manga tab)
@@ -1086,6 +1133,10 @@ function showToast(message, type = "success") {
 // Tab Switching
 function switchTab(tabName) {
     currentTab = tabName;
+    
+    // Show footer on normal tabs
+    const footer = document.querySelector(".footer");
+    if (footer) footer.style.display = "block";
     
     document.querySelectorAll(".nav-menu .nav-item").forEach(item => {
         if (item.getAttribute("data-tab") === tabName) {
