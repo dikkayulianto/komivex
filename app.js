@@ -94,6 +94,23 @@ let bookmarkedMangas = JSON.parse(localStorage.getItem("komikid_bookmarked_manga
 let readChapters = JSON.parse(localStorage.getItem("komikid_read_chapters")) || {}; // { mangaId: [chNums] }
 let currentTab = "home";
 
+// Authentication & User State
+let registeredUsers = JSON.parse(localStorage.getItem("komivex_registered_users")) || [
+    { username: "admin", email: "admin@komivex.com", password: "admin", role: "admin" }
+];
+let currentUser = JSON.parse(localStorage.getItem("komivex_current_user")) || null;
+let readingHistory = [];
+if (currentUser) {
+    readingHistory = JSON.parse(localStorage.getItem(`komivex_history_${currentUser.email}`)) || [];
+}
+
+// Custom Ad Scripts Storage State
+let customAdCodes = JSON.parse(localStorage.getItem("komivex_ad_codes")) || {
+    header: "",
+    sidebar: "",
+    footer: ""
+};
+
 // Active API fetched lists to avoid duplicate requests & speed up clicks
 let activeMangaList = []; 
 let activeUpdatesList = [];
@@ -927,8 +944,10 @@ async function openChapterReader(mangaId, chapterNumber) {
     
     // Switch active tab to reader-view
     currentTab = "reader";
+    const mainLayout = document.querySelector(".main-layout-wrapper");
+    if (mainLayout) mainLayout.style.display = "none";
     const footer = document.querySelector(".footer");
-    if (footer) footer.style.display = "none";
+    if (footer) footer.style.display = "";
     const mobileNav = document.getElementById("mobile-bottom-nav");
     if (mobileNav) mobileNav.style.display = "none";
 
@@ -967,6 +986,24 @@ async function openChapterReader(mangaId, chapterNumber) {
         if (!response.ok) throw new Error("Gagal mengambil data chapter");
         
         const data = await response.json();
+        
+        // Track reading history for logged in user
+        if (currentUser && currentUser.role === "user") {
+            const existingIdx = readingHistory.findIndex(h => h.mangaId === mangaId);
+            const historyEntry = {
+                mangaId: mangaId,
+                mangaTitle: data.manga_title || mangaId.replace('-', ' ').toUpperCase(),
+                cover: data.images && data.images[0] ? data.images[0] : (mangaDetailsCache[mangaId]?.cover || "/assets/manga_cover_1.jpg"),
+                chapterNumber: currentChapterNumberForReader,
+                timestamp: new Date().toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+            };
+
+            if (existingIdx !== -1) {
+                readingHistory.splice(existingIdx, 1);
+            }
+            readingHistory.unshift(historyEntry);
+            localStorage.setItem(`komivex_history_${currentUser.email}`, JSON.stringify(readingHistory));
+        }
         
         if (data.error) throw new Error(data.error);
 
@@ -1065,6 +1102,10 @@ async function openChapterReader(mangaId, chapterNumber) {
 }
 
 const goBackFromReader = () => {
+    // Show main layout wrapper
+    const mainLayout = document.querySelector(".main-layout-wrapper");
+    if (mainLayout) mainLayout.style.display = "flex";
+    
     // Show footer and mobile bottom nav on normal tabs
     const footer = document.querySelector(".footer");
     if (footer) footer.style.display = "";
@@ -1142,6 +1183,10 @@ function showToast(message, type = "success") {
 function switchTab(tabName) {
     currentTab = tabName;
     
+    // Show main layout wrapper
+    const mainLayout = document.querySelector(".main-layout-wrapper");
+    if (mainLayout) mainLayout.style.display = "flex";
+    
     // Show footer and mobile bottom nav on normal tabs
     const footer = document.querySelector(".footer");
     if (footer) footer.style.display = "";
@@ -1169,6 +1214,79 @@ function switchTab(tabName) {
         renderMangaDirectory(1);
         document.getElementById("manga-view").classList.add("active");
         showToast("Membuka Daftar Manga", "info");
+    } else if (tabName === "admin") {
+        // Simulate stats
+        const viewStat = document.getElementById("admin-stat-views");
+        const scrapeStat = document.getElementById("admin-stat-scrapes");
+        if (viewStat) viewStat.textContent = (15000 + Math.floor(Math.random() * 800)).toLocaleString('id-ID');
+        if (scrapeStat) scrapeStat.textContent = (120 + Math.floor(Math.random() * 20)).toString();
+        
+        // Populate textareas with saved ad scripts
+        const inputHeader = document.getElementById("ad-code-header");
+        const inputSidebar = document.getElementById("ad-code-sidebar");
+        const inputFooter = document.getElementById("ad-code-footer");
+        if (inputHeader) inputHeader.value = customAdCodes.header;
+        if (inputSidebar) inputSidebar.value = customAdCodes.sidebar;
+        if (inputFooter) inputFooter.value = customAdCodes.footer;
+
+        document.getElementById("admin-view").classList.add("active");
+        showToast("Membuka Admin Panel", "info");
+    } else if (tabName === "user-dashboard") {
+        renderUserDashboard();
+        document.getElementById("user-dashboard-view").classList.add("active");
+        showToast("Membuka Dashboard User", "info");
+    }
+}
+
+function renderUserDashboard() {
+    const historyListContainer = document.getElementById("dashboard-history-list");
+    const updatesListContainer = document.getElementById("dashboard-updates-list");
+    
+    if (!historyListContainer || !updatesListContainer) return;
+    
+    // 1. Render reading history
+    historyListContainer.innerHTML = "";
+    if (readingHistory.length === 0) {
+        historyListContainer.innerHTML = `<p style="color: var(--text-muted); padding: 12px; font-size: 13px; text-align: center; width: 100%;">Belum ada riwayat membaca.</p>`;
+    } else {
+        readingHistory.forEach(item => {
+            const el = document.createElement("div");
+            el.className = "history-item";
+            el.innerHTML = `
+                <img src="${item.cover}" alt="${item.mangaTitle}" class="history-cover" onerror="this.src='/assets/manga_cover_1.jpg'">
+                <div class="history-info">
+                    <h4 class="history-title">${item.mangaTitle}</h4>
+                    <span class="history-ch">Terakhir dibaca: Ch. ${item.chapterNumber}</span>
+                </div>
+                <span class="history-time">${item.timestamp}</span>
+            `;
+            el.onclick = () => {
+                openMangaDetail(item.mangaId);
+            };
+            historyListContainer.appendChild(el);
+        });
+    }
+
+    // 2. Render bookmarked manga updates
+    updatesListContainer.innerHTML = "";
+    if (bookmarkedMangas.length === 0) {
+        updatesListContainer.innerHTML = `<p style="color: var(--text-muted); padding: 12px; font-size: 13px; text-align: center; width: 100%;">Library kamu kosong. Simpan manga ke library untuk melihat update di sini.</p>`;
+    } else {
+        bookmarkedMangas.forEach(manga => {
+            const el = document.createElement("div");
+            el.className = "update-item-row";
+            el.innerHTML = `
+                <img src="${manga.cover}" alt="${manga.title}" class="update-item-cover" onerror="this.src='/assets/manga_cover_1.jpg'">
+                <div class="update-item-info">
+                    <h4 class="update-item-title">${manga.title}</h4>
+                    <span class="update-item-meta">Terbaru: Ch. ${manga.latestChapter} · ${manga.type}</span>
+                </div>
+            `;
+            el.onclick = () => {
+                openMangaDetail(manga.id);
+            };
+            updatesListContainer.appendChild(el);
+        });
     }
 }
 
@@ -1204,6 +1322,50 @@ function toggleTheme() {
         moonIcon.style.display = "none";
         localStorage.setItem("komikid_theme", "dark");
         showToast("Mode Gelap Aktif", "info");
+    }
+}
+
+function updateAuthUI() {
+    const loginModalBtn = document.getElementById("login-modal-btn");
+    const navAdminBtn = document.getElementById("nav-admin");
+    const navUserDashboardBtn = document.getElementById("nav-user-dashboard");
+    
+    // Mobile bottom nav buttons
+    const mobNavTheme = document.getElementById("mob-nav-theme");
+    const mobNavDashboard = document.getElementById("mob-nav-dashboard");
+    const mobNavAdmin = document.getElementById("mob-nav-admin");
+
+    if (currentUser) {
+        const name = currentUser.username;
+        loginModalBtn.textContent = name.charAt(0).toUpperCase() + name.slice(1, 7) + " (Keluar)";
+        loginModalBtn.style.background = "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)";
+        loginModalBtn.style.boxShadow = "0 4px 14px rgba(239, 68, 68, 0.3)";
+        
+        if (currentUser.role === "admin") {
+            if (navAdminBtn) navAdminBtn.style.display = "flex";
+            if (navUserDashboardBtn) navUserDashboardBtn.style.display = "none";
+            
+            if (mobNavTheme) mobNavTheme.style.display = "none";
+            if (mobNavDashboard) mobNavDashboard.style.display = "none";
+            if (mobNavAdmin) mobNavAdmin.style.display = "flex";
+        } else {
+            if (navAdminBtn) navAdminBtn.style.display = "none";
+            if (navUserDashboardBtn) navUserDashboardBtn.style.display = "flex";
+            
+            if (mobNavTheme) mobNavTheme.style.display = "none";
+            if (mobNavDashboard) mobNavDashboard.style.display = "flex";
+            if (mobNavAdmin) mobNavAdmin.style.display = "none";
+        }
+    } else {
+        loginModalBtn.textContent = "Masuk";
+        loginModalBtn.style.background = "linear-gradient(135deg, #a855f7 0%, #ec4899 100%)";
+        loginModalBtn.style.boxShadow = "none";
+        if (navAdminBtn) navAdminBtn.style.display = "none";
+        if (navUserDashboardBtn) navUserDashboardBtn.style.display = "none";
+        
+        if (mobNavTheme) mobNavTheme.style.display = "flex";
+        if (mobNavDashboard) mobNavDashboard.style.display = "none";
+        if (mobNavAdmin) mobNavAdmin.style.display = "none";
     }
 }
 
@@ -1372,8 +1534,17 @@ function setupEventListeners() {
     const loginForm = document.getElementById("login-form");
 
     loginModalBtn.addEventListener("click", () => {
-        loginModal.classList.add("open");
-        document.body.style.overflow = "hidden";
+        if (currentUser) {
+            showToast(`Sampai jumpa kembali, ${currentUser.username}!`, "info");
+            currentUser = null;
+            localStorage.removeItem("komivex_current_user");
+            readingHistory = [];
+            updateAuthUI();
+            switchTab("home");
+        } else {
+            loginModal.classList.add("open");
+            document.body.style.overflow = "hidden";
+        }
     });
 
     function closeLoginModal() {
@@ -1388,18 +1559,131 @@ function setupEventListeners() {
         }
     });
 
+    // Login/Register Form Switching
+    const tabLoginBtn = document.getElementById("tab-login-btn");
+    const tabRegisterBtn = document.getElementById("tab-register-btn");
+    const loginFormContainer = document.getElementById("login-form-container");
+    const registerFormContainer = document.getElementById("register-form-container");
+
+    if (tabLoginBtn && tabRegisterBtn) {
+        tabLoginBtn.addEventListener("click", () => {
+            tabLoginBtn.classList.add("active");
+            tabRegisterBtn.classList.remove("active");
+            loginFormContainer.style.display = "block";
+            registerFormContainer.style.display = "none";
+        });
+
+        tabRegisterBtn.addEventListener("click", () => {
+            tabRegisterBtn.classList.add("active");
+            tabLoginBtn.classList.remove("active");
+            registerFormContainer.style.display = "block";
+            loginFormContainer.style.display = "none";
+        });
+    }
+
+    // Submit register form
+    const registerForm = document.getElementById("register-form");
+    if (registerForm) {
+        registerForm.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const username = document.getElementById("register-username").value.trim();
+            const email = document.getElementById("register-email").value.trim();
+            const password = document.getElementById("register-password").value;
+
+            const exists = registeredUsers.some(u => u.email === email);
+            if (exists) {
+                showToast("Email sudah terdaftar!", "info");
+                return;
+            }
+
+            registeredUsers.push({ username, email, password, role: "user" });
+            localStorage.setItem("komivex_registered_users", JSON.stringify(registeredUsers));
+
+            showToast("Pendaftaran sukses! Silakan login.", "success");
+            registerForm.reset();
+            tabLoginBtn.click();
+        });
+    }
+
+    // Submit login form
     loginForm.addEventListener("submit", (e) => {
         e.preventDefault();
-        const email = document.getElementById("login-email").value;
-        const name = email.split('@')[0];
-        
-        loginModalBtn.textContent = name.charAt(0).toUpperCase() + name.slice(0, 5);
-        loginModalBtn.style.background = "linear-gradient(135deg, #10b981 0%, #059669 100%)";
-        loginModalBtn.style.boxShadow = "0 4px 14px rgba(16, 185, 129, 0.3)";
-        
-        closeLoginModal();
-        showToast(`Selamat datang kembali, ${name}!`, "success");
+        const email = document.getElementById("login-email").value.trim();
+        const password = document.getElementById("login-password").value;
+
+        const user = registeredUsers.find(u => u.email === email && u.password === password);
+
+        if (user) {
+            currentUser = { username: user.username, email: user.email, role: user.role };
+            localStorage.setItem("komivex_current_user", JSON.stringify(currentUser));
+            
+            readingHistory = JSON.parse(localStorage.getItem(`komivex_history_${currentUser.email}`)) || [];
+            
+            updateAuthUI();
+            closeLoginModal();
+            loginForm.reset();
+            
+            showToast(`Selamat datang kembali, ${currentUser.username}!`, "success");
+            
+            if (currentUser.role === "admin") {
+                switchTab("admin");
+            } else {
+                switchTab("user-dashboard");
+            }
+        } else {
+            showToast("Email atau password salah!", "info");
+        }
     });
+
+    // Admin toggles for Ads
+    const toggleHeaderAds = document.getElementById("toggle-header-ads");
+    const toggleSidebarAds = document.getElementById("toggle-sidebar-ads");
+    const toggleFooterAds = document.getElementById("toggle-footer-ads");
+
+    const headerAds = document.getElementById("header-ads");
+    const sidebarAds = document.getElementById("sidebar-ads");
+    const footerAds = document.getElementById("footer-ads");
+
+    if (toggleHeaderAds) {
+        toggleHeaderAds.addEventListener("change", (e) => {
+            if (headerAds) headerAds.style.display = e.target.checked ? "block" : "none";
+            showToast(`Iklan Header ${e.target.checked ? 'Diaktifkan' : 'Dinonaktifkan'}`, "info");
+        });
+    }
+
+    if (toggleSidebarAds) {
+        toggleSidebarAds.addEventListener("change", (e) => {
+            if (sidebarAds) sidebarAds.style.display = e.target.checked ? "block" : "none";
+            showToast(`Iklan Sidebar ${e.target.checked ? 'Diaktifkan' : 'Dinonaktifkan'}`, "info");
+        });
+    }
+
+    if (toggleFooterAds) {
+        toggleFooterAds.addEventListener("change", (e) => {
+            if (footerAds) footerAds.style.display = e.target.checked ? "block" : "none";
+            showToast(`Iklan Footer ${e.target.checked ? 'Diaktifkan' : 'Dinonaktifkan'}`, "info");
+        });
+    }
+
+    // Save Custom Ad Codes
+    const saveAdCodesBtn = document.getElementById("save-ad-codes-btn");
+    if (saveAdCodesBtn) {
+        saveAdCodesBtn.addEventListener("click", () => {
+            const headerCode = document.getElementById("ad-code-header").value;
+            const sidebarCode = document.getElementById("ad-code-sidebar").value;
+            const footerCode = document.getElementById("ad-code-footer").value;
+
+            customAdCodes = {
+                header: headerCode,
+                sidebar: sidebarCode,
+                footer: footerCode
+            };
+
+            localStorage.setItem("komivex_ad_codes", JSON.stringify(customAdCodes));
+            applyAllAdCodes();
+            showToast("Script iklan berhasil disimpan dan diterapkan!", "success");
+        });
+    }
 
     window.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
@@ -1516,6 +1800,60 @@ function startAutoUpdate() {
     }, 10000);
 }
 
+// Custom ad script execution helpers
+function executeScripts(container) {
+    const scripts = container.querySelectorAll("script");
+    scripts.forEach(oldScript => {
+        const newScript = document.createElement("script");
+        Array.from(oldScript.attributes).forEach(attr => {
+            newScript.setAttribute(attr.name, attr.value);
+        });
+        if (oldScript.src) {
+            newScript.src = oldScript.src;
+        } else {
+            newScript.textContent = oldScript.textContent;
+        }
+        oldScript.parentNode.replaceChild(newScript, oldScript);
+    });
+}
+
+function updateAdContent(zoneId, adHtml, defaultHtml) {
+    const zone = document.getElementById(zoneId);
+    if (!zone) return;
+
+    if (adHtml && adHtml.trim() !== "") {
+        zone.innerHTML = adHtml;
+        executeScripts(zone);
+    } else {
+        zone.innerHTML = defaultHtml;
+    }
+}
+
+// Default HTML backups to restore if custom code is cleared
+const defaultAdContents = {
+    header: `
+        <a href="#" class="ads-link">
+            <div class="ads-banner-mock">Beli Kopi Komivex Premium - Diskon 50% untuk Pembaca Setia! ☕</div>
+        </a>
+    `,
+    sidebar: `
+        <div class="ads-banner-mock vertical-ad-1">
+            <h4>Komivex Shop</h4>
+            <p>Dapatkan merchandise eksklusif manga favoritmu sekarang juga!</p>
+            <button class="btn-primary btn-sm">Beli Sekarang</button>
+        </div>
+    `,
+    footer: `
+        <div class="ads-banner-mock">Join Komivex Discord & Dapatkan Info Update Manga Tercepat! 👾</div>
+    `
+};
+
+function applyAllAdCodes() {
+    updateAdContent("header-ads-zone", customAdCodes.header, defaultAdContents.header);
+    updateAdContent("sidebar-ads-zone", customAdCodes.sidebar, defaultAdContents.sidebar);
+    updateAdContent("footer-ads-zone", customAdCodes.footer, defaultAdContents.footer);
+}
+
 // 9. Initial Build Fire
 function init() {
     const savedTheme = localStorage.getItem("komikid_theme") || "dark";
@@ -1531,6 +1869,8 @@ function init() {
         document.querySelector(".moon-icon").style.display = "none";
     }
 
+    updateAuthUI();
+    applyAllAdCodes();
     renderPopularGrid();
     renderUpdatesGrid();
     renderLibraryGrid();
