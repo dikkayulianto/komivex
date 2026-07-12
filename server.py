@@ -9,7 +9,7 @@ import os
 import mimetypes
 import ssl
 
-PORT = 8080
+PORT = int(os.environ.get("PORT", 8080))
 
 DEFAULT_CONFIG = {
     "logo_url": "/assets/logo.jpg",

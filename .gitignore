@@ -13,3 +13,7 @@ Thumbs.db
 brain/
 .gemini/
 scratch/
+ngrok.exe
+__pycache__/
+*.pyc
+*.pyo

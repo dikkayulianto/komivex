@@ -1,0 +1,3 @@
+# Komivex tidak memerlukan dependency eksternal apapun
+# Semua library yang digunakan adalah bawaan Python (stdlib)
+# urllib, json, re, os, ssl, http.server, socketserver, mimetypes
