@@ -106,10 +106,17 @@ if (currentUser) {
 
 // Custom Ad Scripts Storage State
 let customAdCodes = JSON.parse(localStorage.getItem("komivex_ad_codes")) || {
+    head: "",
+    body: "",
     header: "",
-    sidebar: "",
+    sidebar_1: "",
+    sidebar_2: "",
     footer: ""
 };
+
+if (customAdCodes && customAdCodes.sidebar && !customAdCodes.sidebar_1) {
+    customAdCodes.sidebar_1 = customAdCodes.sidebar;
+}
 
 // Active API fetched lists to avoid duplicate requests & speed up clicks
 let activeMangaList = []; 
@@ -1230,12 +1237,19 @@ function switchTab(tabName) {
         if (scrapeStat) scrapeStat.textContent = (120 + Math.floor(Math.random() * 20)).toString();
         
         // Populate textareas with saved ad scripts
+        const inputHead = document.getElementById("ad-code-head");
+        const inputBody = document.getElementById("ad-code-body");
         const inputHeader = document.getElementById("ad-code-header");
-        const inputSidebar = document.getElementById("ad-code-sidebar");
+        const inputSidebar1 = document.getElementById("ad-code-sidebar-1");
+        const inputSidebar2 = document.getElementById("ad-code-sidebar-2");
         const inputFooter = document.getElementById("ad-code-footer");
-        if (inputHeader) inputHeader.value = customAdCodes.header;
-        if (inputSidebar) inputSidebar.value = customAdCodes.sidebar;
-        if (inputFooter) inputFooter.value = customAdCodes.footer;
+        
+        if (inputHead) inputHead.value = customAdCodes.head || "";
+        if (inputBody) inputBody.value = customAdCodes.body || "";
+        if (inputHeader) inputHeader.value = customAdCodes.header || "";
+        if (inputSidebar1) inputSidebar1.value = customAdCodes.sidebar_1 || "";
+        if (inputSidebar2) inputSidebar2.value = customAdCodes.sidebar_2 || "";
+        if (inputFooter) inputFooter.value = customAdCodes.footer || "";
 
         document.getElementById("admin-view").classList.add("active");
         showToast("Membuka Admin Panel", "info");
@@ -1678,14 +1692,18 @@ function setupEventListeners() {
     if (saveAdCodesBtn) {
         saveAdCodesBtn.addEventListener("click", async () => {
             const headCode = document.getElementById("ad-code-head").value;
+            const bodyCode = document.getElementById("ad-code-body").value;
             const headerCode = document.getElementById("ad-code-header").value;
-            const sidebarCode = document.getElementById("ad-code-sidebar").value;
+            const sidebar1Code = document.getElementById("ad-code-sidebar-1").value;
+            const sidebar2Code = document.getElementById("ad-code-sidebar-2").value;
             const footerCode = document.getElementById("ad-code-footer").value;
 
             customAdCodes = {
                 head: headCode,
+                body: bodyCode,
                 header: headerCode,
-                sidebar: sidebarCode,
+                sidebar_1: sidebar1Code,
+                sidebar_2: sidebar2Code,
                 footer: footerCode
             };
 
@@ -2001,20 +2019,62 @@ function startAutoUpdate() {
     }, 10000);
 }
 
-// Custom ad script execution helpers
 function executeScripts(container) {
     const scripts = container.querySelectorAll("script");
     scripts.forEach(oldScript => {
+        // Skip already executed scripts to avoid infinite loops
+        if (oldScript.type === "text/executed-script") return;
+
         const newScript = document.createElement("script");
         Array.from(oldScript.attributes).forEach(attr => {
             newScript.setAttribute(attr.name, attr.value);
         });
+        
         if (oldScript.src) {
             newScript.src = oldScript.src;
+            oldScript.parentNode.replaceChild(newScript, oldScript);
         } else {
-            newScript.textContent = oldScript.textContent;
+            const originalWrite = document.write;
+            let writtenHtml = "";
+            document.write = function(html) {
+                writtenHtml += html;
+            };
+            
+            try {
+                window.eval(oldScript.textContent);
+            } catch (e) {
+                console.error("Error executing inline ad script:", e);
+            }
+            
+            document.write = originalWrite;
+            
+            if (writtenHtml && writtenHtml.trim() !== "") {
+                const tempDiv = document.createElement("div");
+                tempDiv.innerHTML = writtenHtml;
+                
+                Array.from(tempDiv.childNodes).forEach(child => {
+                    if (child.tagName !== "SCRIPT") {
+                        container.appendChild(child);
+                    }
+                });
+                
+                const writtenScripts = tempDiv.querySelectorAll("script");
+                writtenScripts.forEach(ws => {
+                    const dynamicScript = document.createElement("script");
+                    Array.from(ws.attributes).forEach(attr => {
+                        dynamicScript.setAttribute(attr.name, attr.value);
+                    });
+                    if (ws.src) {
+                        dynamicScript.src = ws.src;
+                    } else {
+                        dynamicScript.textContent = ws.textContent;
+                    }
+                    container.appendChild(dynamicScript);
+                });
+            }
+            
+            oldScript.type = "text/executed-script";
         }
-        oldScript.parentNode.replaceChild(newScript, oldScript);
     });
 }
 
@@ -2037,11 +2097,18 @@ const defaultAdContents = {
             <div class="ads-banner-mock">Beli Kopi Komivex Premium - Diskon 50% untuk Pembaca Setia! ☕</div>
         </a>
     `,
-    sidebar: `
+    sidebar_1: `
         <div class="ads-banner-mock vertical-ad-1">
             <h4>Komivex Shop</h4>
             <p>Dapatkan merchandise eksklusif manga favoritmu sekarang juga!</p>
             <button class="btn-primary btn-sm">Beli Sekarang</button>
+        </div>
+    `,
+    sidebar_2: `
+        <div class="ads-banner-mock vertical-ad-2">
+            <h4>Gaming Zone</h4>
+            <p>Mainkan game MMORPG anime terbaik 2026 gratis di browser!</p>
+            <button class="btn-secondary btn-sm">Main Gratis</button>
         </div>
     `,
     footer: `
@@ -2051,7 +2118,8 @@ const defaultAdContents = {
 
 function applyAllAdCodes() {
     updateAdContent("header-ads-zone", customAdCodes.header, defaultAdContents.header);
-    updateAdContent("sidebar-ads-zone", customAdCodes.sidebar, defaultAdContents.sidebar);
+    updateAdContent("sidebar-ads-zone", customAdCodes.sidebar_1, defaultAdContents.sidebar_1);
+    updateAdContent("sidebar-ads-zone-2", customAdCodes.sidebar_2, defaultAdContents.sidebar_2);
     updateAdContent("footer-ads-zone", customAdCodes.footer, defaultAdContents.footer);
 }
 
@@ -2171,16 +2239,31 @@ async function loadAndApplySiteConfig() {
         // Apply custom ads if present in siteConfig
         if (siteConfig.custom_ad_codes) {
             customAdCodes = siteConfig.custom_ad_codes;
-            applyAllAdCodes();
             
-            // Populate head script textarea
-            const inputHeadCode = document.getElementById("ad-code-head");
-            if (inputHeadCode) {
-                inputHeadCode.value = siteConfig.custom_ad_codes.head || "";
+            // Backwards compatibility migration
+            if (customAdCodes.sidebar && !customAdCodes.sidebar_1) {
+                customAdCodes.sidebar_1 = customAdCodes.sidebar;
             }
             
+            applyAllAdCodes();
+            
+            // Populate all textareas in Admin panel
+            const inputHeadCode = document.getElementById("ad-code-head");
+            const inputBodyCode = document.getElementById("ad-code-body");
+            const inputHeader = document.getElementById("ad-code-header");
+            const inputSidebar1 = document.getElementById("ad-code-sidebar-1");
+            const inputSidebar2 = document.getElementById("ad-code-sidebar-2");
+            const inputFooter = document.getElementById("ad-code-footer");
+            
+            if (inputHeadCode) inputHeadCode.value = customAdCodes.head || "";
+            if (inputBodyCode) inputBodyCode.value = customAdCodes.body || "";
+            if (inputHeader) inputHeader.value = customAdCodes.header || "";
+            if (inputSidebar1) inputSidebar1.value = customAdCodes.sidebar_1 || "";
+            if (inputSidebar2) inputSidebar2.value = customAdCodes.sidebar_2 || "";
+            if (inputFooter) inputFooter.value = customAdCodes.footer || "";
+            
             // Inject custom head scripts dynamically to document head
-            if (siteConfig.custom_ad_codes.head && siteConfig.custom_ad_codes.head.trim() !== "") {
+            if (customAdCodes.head && customAdCodes.head.trim() !== "") {
                 let headAdsContainer = document.getElementById("custom-head-scripts");
                 if (!headAdsContainer) {
                     headAdsContainer = document.createElement("div");
@@ -2188,8 +2271,21 @@ async function loadAndApplySiteConfig() {
                     headAdsContainer.style.display = "none";
                     document.head.appendChild(headAdsContainer);
                 }
-                headAdsContainer.innerHTML = siteConfig.custom_ad_codes.head;
+                headAdsContainer.innerHTML = customAdCodes.head;
                 executeScripts(headAdsContainer);
+            }
+            
+            // Inject custom body scripts dynamically to document body
+            if (customAdCodes.body && customAdCodes.body.trim() !== "") {
+                let bodyAdsContainer = document.getElementById("custom-body-scripts");
+                if (!bodyAdsContainer) {
+                    bodyAdsContainer = document.createElement("div");
+                    bodyAdsContainer.id = "custom-body-scripts";
+                    bodyAdsContainer.style.display = "none";
+                    document.body.appendChild(bodyAdsContainer);
+                }
+                bodyAdsContainer.innerHTML = customAdCodes.body;
+                executeScripts(bodyAdsContainer);
             }
         }
         

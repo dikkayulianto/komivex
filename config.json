@@ -6,9 +6,11 @@
     "meta_title": "Komivex - Baca Manga Terpopuler",
     "meta_description": "Platform baca komik (Manga, Manhua, Manhwa) terpopuler dan terlengkap gratis bahasa Indonesia dengan antarmuka modern dan premium.",
     "verification_code": "",
+    "scraper_target_domain": "https://bacakomik.my",
     "custom_ad_codes": {
-        "header": "",
-        "sidebar": "",
+        "head": "",
+        "header": "<script>\n  atOptions = {\n    'key' : '72936376a03f45a98f1b9ff925135d4e',\n    'format' : 'iframe',\n    'height' : 90,\n    'width' : 728,\n    'params' : {}\n  };\n</script>\n<script src=\"https://remotelydependedchance.com/72936376a03f45a98f1b9ff925135d4e/invoke.js\"></script>\n",
+        "sidebar": "<script async=\"async\" data-cfasync=\"false\" src=\"https://remotelydependedchance.com/d5a0a40b5ffcde72216fe3ca9c098546/invoke.js\"></script>\n<div id=\"container-d5a0a40b5ffcde72216fe3ca9c098546\"></div>\n",
         "footer": ""
     }
 }

@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Link to Stylesheet -->
-    <link rel="stylesheet" href="styles.css?v=15">
+    <link rel="stylesheet" href="styles.css?v=16">
 </head>
 <body class="dark-theme">
     <!-- Background Blob Glows -->
@@ -347,12 +347,20 @@
                             <textarea id="ad-code-head" rows="3" style="width: 100%; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 12px; font-family: monospace; font-size: 12px; outline: none; resize: vertical;" placeholder="Paste script iklan Popunder atau Auto Ads yang diletakkan di <head> di sini..."></textarea>
                         </div>
                         <div class="admin-form-group-vertical" style="margin-bottom: 16px;">
+                            <label for="ad-code-body" class="admin-form-label" style="display: block; margin-bottom: 8px;">Kode Script HTML Body (Floating Ads/Popunder/Anti-Adblock):</label>
+                            <textarea id="ad-code-body" rows="3" style="width: 100%; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 12px; font-family: monospace; font-size: 12px; outline: none; resize: vertical;" placeholder="Paste script iklan yang diletakkan di akhir tag <body> di sini..."></textarea>
+                        </div>
+                        <div class="admin-form-group-vertical" style="margin-bottom: 16px;">
                             <label for="ad-code-header" class="admin-form-label" style="display: block; margin-bottom: 8px;">Kode Iklan Header (Top Banner):</label>
                             <textarea id="ad-code-header" rows="3" style="width: 100%; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 12px; font-family: monospace; font-size: 12px; outline: none; resize: vertical;" placeholder="Paste script iklan Header di sini (misal iframe atau script adsterra)..."></textarea>
                         </div>
                         <div class="admin-form-group-vertical" style="margin-bottom: 16px;">
-                            <label for="ad-code-sidebar" class="admin-form-label" style="display: block; margin-bottom: 8px;">Kode Iklan Sidebar (Vertical Banner):</label>
-                            <textarea id="ad-code-sidebar" rows="3" style="width: 100%; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 12px; font-family: monospace; font-size: 12px; outline: none; resize: vertical;" placeholder="Paste script iklan Sidebar di sini..."></textarea>
+                            <label for="ad-code-sidebar-1" class="admin-form-label" style="display: block; margin-bottom: 8px;">Kode Iklan Sidebar Slot 1 (Vertical Banner):</label>
+                            <textarea id="ad-code-sidebar-1" rows="3" style="width: 100%; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 12px; font-family: monospace; font-size: 12px; outline: none; resize: vertical;" placeholder="Paste script iklan Sidebar Slot 1 di sini..."></textarea>
+                        </div>
+                        <div class="admin-form-group-vertical" style="margin-bottom: 16px;">
+                            <label for="ad-code-sidebar-2" class="admin-form-label" style="display: block; margin-bottom: 8px;">Kode Iklan Sidebar Slot 2 (Vertical Banner):</label>
+                            <textarea id="ad-code-sidebar-2" rows="3" style="width: 100%; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 12px; font-family: monospace; font-size: 12px; outline: none; resize: vertical;" placeholder="Paste script iklan Sidebar Slot 2 di sini..."></textarea>
                         </div>
                         <div class="admin-form-group-vertical" style="margin-bottom: 16px;">
                             <label for="ad-code-footer" class="admin-form-label" style="display: block; margin-bottom: 8px;">Kode Iklan Footer (Bottom Banner):</label>
@@ -462,10 +470,12 @@
             </div>
             <div class="ads-slot sidebar-ad-box">
                 <div class="ads-label">ADVERTISEMENT</div>
-                <div class="ads-banner-mock vertical-ad-2">
-                    <h4>Gaming Zone</h4>
-                    <p>Mainkan game MMORPG anime terbaik 2026 gratis di browser!</p>
-                    <button class="btn-secondary btn-sm">Main Gratis</button>
+                <div class="ads-display-zone" id="sidebar-ads-zone-2">
+                    <div class="ads-banner-mock vertical-ad-2">
+                        <h4>Gaming Zone</h4>
+                        <p>Mainkan game MMORPG anime terbaik 2026 gratis di browser!</p>
+                        <button class="btn-secondary btn-sm">Main Gratis</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -754,6 +764,6 @@
     <div class="toast-container" id="toast-container"></div>
 
     <!-- Link to JavaScript -->
-    <script src="app.js?v=15"></script>
+    <script src="app.js?v=16"></script>
 </body>
 </html>

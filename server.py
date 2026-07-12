@@ -22,8 +22,10 @@ DEFAULT_CONFIG = {
     "scraper_target_domain": "https://bacakomik.my",
     "custom_ad_codes": {
         "head": "",
+        "body": "",
         "header": "",
-        "sidebar": "",
+        "sidebar_1": "",
+        "sidebar_2": "",
         "footer": ""
     }
 }
@@ -33,7 +35,12 @@ site_config = DEFAULT_CONFIG.copy()
 if os.path.exists(CONFIG_FILE):
     try:
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            site_config.update(json.load(f))
+            loaded_config = json.load(f)
+            if "custom_ad_codes" in loaded_config:
+                ads = loaded_config["custom_ad_codes"]
+                if "sidebar" in ads and ads["sidebar"] and not ads.get("sidebar_1"):
+                    ads["sidebar_1"] = ads["sidebar"]
+            site_config.update(loaded_config)
     except Exception as e:
         print("Error loading config.json:", e)
 
