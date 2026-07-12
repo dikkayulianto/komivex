@@ -1,0 +1,9 @@
+# nixpacks.toml — Konfigurasi build Nixpacks untuk Railway
+[phases.setup]
+nixPkgs = ["python310"]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "python3 server.py"
