@@ -1641,12 +1641,14 @@ body.light-theme .manga-card:hover {
 @media (max-width: 768px) {
     .manga-grid-carousel:not(.grid-view) .manga-card {
         flex: 0 0 calc((100% - 40px) / 3); /* 3 columns */
+        min-width: 130px;
     }
 }
 
 @media (max-width: 480px) {
     .manga-grid-carousel:not(.grid-view) .manga-card {
         flex: 0 0 calc((100% - 20px) / 2); /* 2 columns */
+        min-width: 110px;
     }
 }
 
@@ -2206,9 +2208,9 @@ body.light-theme .manga-card:hover {
         padding-top: 0;
     }
 
-    /* Center logo */
+    /* Logo on left, actions on right on mobile */
     .navbar-container {
-        justify-content: center;
+        justify-content: space-between;
         padding: 0 16px;
     }
 
@@ -2303,18 +2305,18 @@ body.light-theme .manga-card:hover {
    ═══════════════════════════════════════════════════════════ */
 
 @media (max-width: 680px) {
-    .detail-modal-inner {
+    #detail-modal .modal-card {
         border-radius: 16px 16px 0 0;
         max-height: 94vh;
         margin-top: auto;
     }
 
-    .detail-modal-overlay {
+    #detail-modal.modal-backdrop {
         align-items: flex-end;
     }
 
     /* Drag handle indicator */
-    .detail-modal-inner::before {
+    #detail-modal .modal-card::before {
         content: '';
         display: block;
         width: 40px;
