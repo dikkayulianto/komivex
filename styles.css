@@ -628,8 +628,8 @@ body.light-theme .nav-item.active {
         padding: 0 16px;
     }
     .main-content {
-        padding-left: 16px;
-        padding-right: 16px;
+        padding-left: 0;
+        padding-right: 0;
     }
 }
 
@@ -862,6 +862,7 @@ body.light-theme .manga-card:hover {
     flex-direction: column;
     justify-content: center;
     flex-grow: 1;
+    min-width: 0;
     overflow: hidden;
 }
 
