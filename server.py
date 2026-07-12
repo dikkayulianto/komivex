@@ -691,8 +691,8 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
 # Avoid port in use errors on server restart
 socketserver.TCPServer.allow_reuse_address = True
 
-with socketserver.TCPServer(("", PORT), ScraperHandler) as httpd:
-    print(f"KomikID Live WordPress Scraper Server running at http://localhost:{PORT}")
+with socketserver.TCPServer(("0.0.0.0", PORT), ScraperHandler) as httpd:
+    print(f"Komivex Server running at http://0.0.0.0:{PORT}")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
