@@ -1734,12 +1734,78 @@ function setupEventListeners() {
         });
     }
 
+    // File upload change listeners
+    const logoFileInput = document.getElementById("brand-logo-file");
+    if (logoFileInput) {
+        logoFileInput.addEventListener("change", async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            document.getElementById("logo-file-name").textContent = file.name;
+            
+            showToast("Mengunggah gambar logo...", "info");
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        'X-File-Type': 'logo',
+                        'Content-Type': file.type
+                    },
+                    body: file
+                });
+                const res = await response.json();
+                if (response.ok && res.status === "success") {
+                    showToast("Logo berhasil diunggah!", "success");
+                    loadAndApplySiteConfig();
+                } else {
+                    showToast("Gagal mengunggah logo", "error");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Eror koneksi ke server saat mengunggah", "error");
+            }
+        });
+    }
+
+    const faviconFileInput = document.getElementById("brand-favicon-file");
+    if (faviconFileInput) {
+        faviconFileInput.addEventListener("change", async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            document.getElementById("favicon-file-name").textContent = file.name;
+            
+            showToast("Mengunggah gambar favicon...", "info");
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        'X-File-Type': 'favicon',
+                        'Content-Type': file.type
+                    },
+                    body: file
+                });
+                const res = await response.json();
+                if (response.ok && res.status === "success") {
+                    showToast("Favicon berhasil diunggah!", "success");
+                    loadAndApplySiteConfig();
+                } else {
+                    showToast("Gagal mengunggah favicon", "error");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Eror koneksi ke server saat mengunggah", "error");
+            }
+        });
+    }
+
     // Save Custom Branding & Analytics Settings
     const saveBrandingBtn = document.getElementById("save-branding-btn");
     if (saveBrandingBtn) {
         saveBrandingBtn.addEventListener("click", async () => {
             const logoUrl = document.getElementById("brand-logo-url").value;
             const faviconUrl = document.getElementById("brand-favicon-url").value;
+            const scraperDomain = document.getElementById("scraper-target-domain").value.trim();
             const analyticsId = document.getElementById("brand-analytics-id").value;
             
             try {
@@ -1749,6 +1815,7 @@ function setupEventListeners() {
                     body: JSON.stringify({
                         logo_url: logoUrl,
                         favicon_url: faviconUrl,
+                        scraper_target_domain: scraperDomain,
                         analytics_id: analyticsId
                     })
                 });
@@ -2046,6 +2113,7 @@ async function loadAndApplySiteConfig() {
         const inputVerifCode = document.getElementById("seo-search-console");
         const inputLogoUrl = document.getElementById("brand-logo-url");
         const inputFaviconUrl = document.getElementById("brand-favicon-url");
+        const inputScraperDomain = document.getElementById("scraper-target-domain");
         const inputAnalyticsId = document.getElementById("brand-analytics-id");
         
         if (inputMetaTitle) inputMetaTitle.value = siteConfig.meta_title || "";
@@ -2053,7 +2121,30 @@ async function loadAndApplySiteConfig() {
         if (inputVerifCode) inputVerifCode.value = siteConfig.verification_code || "";
         if (inputLogoUrl) inputLogoUrl.value = siteConfig.logo_url || "";
         if (inputFaviconUrl) inputFaviconUrl.value = siteConfig.favicon_url || "";
+        if (inputScraperDomain) inputScraperDomain.value = siteConfig.scraper_target_domain || "https://bacakomik.my";
         if (inputAnalyticsId) inputAnalyticsId.value = siteConfig.analytics_id || "";
+        
+        // Show status of custom logo/favicon files
+        const logoFileName = document.getElementById("logo-file-name");
+        if (logoFileName) {
+            if (siteConfig.logo_url && siteConfig.logo_url.includes('logo_uploaded')) {
+                logoFileName.textContent = "Logo kustom terunggah (OK)";
+                logoFileName.style.color = "var(--accent-color)";
+            } else {
+                logoFileName.textContent = "Menggunakan logo bawaan";
+                logoFileName.style.color = "var(--text-secondary)";
+            }
+        }
+        const faviconFileName = document.getElementById("favicon-file-name");
+        if (faviconFileName) {
+            if (siteConfig.favicon_url && siteConfig.favicon_url.includes('favicon_uploaded')) {
+                faviconFileName.textContent = "Favicon kustom terunggah (OK)";
+                faviconFileName.style.color = "var(--accent-color)";
+            } else {
+                faviconFileName.textContent = "Menggunakan favicon bawaan";
+                faviconFileName.style.color = "var(--text-secondary)";
+            }
+        }
         
         // Apply custom ads if present in siteConfig
         if (siteConfig.custom_ad_codes) {

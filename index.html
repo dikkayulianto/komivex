@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Link to Stylesheet -->
-    <link rel="stylesheet" href="styles.css?v=12">
+    <link rel="stylesheet" href="styles.css?v=13">
 </head>
 <body class="dark-theme">
     <!-- Background Blob Glows -->
@@ -379,12 +379,26 @@
                     <div class="admin-card">
                         <h3>Setelan Branding & Pemeliharaan</h3>
                         <div class="admin-form-group-vertical" style="margin-bottom: 16px;">
-                            <label for="brand-logo-url" class="admin-form-label" style="display: block; margin-bottom: 8px;">URL Logo Website (Rasio Horizontal):</label>
-                            <input type="text" id="brand-logo-url" style="width: 100%; height: 38px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 0 12px; font-size: 13px; outline: none;" placeholder="/assets/logo.jpg">
+                            <label class="admin-form-label" style="display: block; margin-bottom: 8px;">Logo Website (Upload Gambar):</label>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <input type="file" id="brand-logo-file" accept="image/*" style="display: none;">
+                                <button class="btn-secondary" type="button" onclick="document.getElementById('brand-logo-file').click()" style="padding: 0 16px; height: 38px; border-radius: 8px; font-size: 12px; margin-bottom: 0;">Pilih Gambar Logo</button>
+                                <span id="logo-file-name" style="font-size: 12px; color: var(--text-secondary); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 200px;">Tidak ada file terpilih</span>
+                            </div>
+                            <input type="hidden" id="brand-logo-url">
                         </div>
                         <div class="admin-form-group-vertical" style="margin-bottom: 16px;">
-                            <label for="brand-favicon-url" class="admin-form-label" style="display: block; margin-bottom: 8px;">URL Favicon Website (Ikon 1:1):</label>
-                            <input type="text" id="brand-favicon-url" style="width: 100%; height: 38px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 0 12px; font-size: 13px; outline: none;" placeholder="/assets/logo.jpg">
+                            <label class="admin-form-label" style="display: block; margin-bottom: 8px;">Favicon Website (Upload Gambar):</label>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <input type="file" id="brand-favicon-file" accept="image/*" style="display: none;">
+                                <button class="btn-secondary" type="button" onclick="document.getElementById('brand-favicon-file').click()" style="padding: 0 16px; height: 38px; border-radius: 8px; font-size: 12px; margin-bottom: 0;">Pilih Gambar Favicon</button>
+                                <span id="favicon-file-name" style="font-size: 12px; color: var(--text-secondary); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 200px;">Tidak ada file terpilih</span>
+                            </div>
+                            <input type="hidden" id="brand-favicon-url">
+                        </div>
+                        <div class="admin-form-group-vertical" style="margin-bottom: 16px;">
+                            <label for="scraper-target-domain" class="admin-form-label" style="display: block; margin-bottom: 8px;">Target Domain Scraper:</label>
+                            <input type="text" id="scraper-target-domain" style="width: 100%; height: 38px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 0 12px; font-size: 13px; outline: none;" placeholder="https://bacakomik.my">
                         </div>
                         <div class="admin-form-group-vertical" style="margin-bottom: 16px;">
                             <label for="brand-analytics-id" class="admin-form-label" style="display: block; margin-bottom: 8px;">Google Analytics (G-ID):</label>
@@ -736,6 +750,6 @@
     <div class="toast-container" id="toast-container"></div>
 
     <!-- Link to JavaScript -->
-    <script src="app.js?v=12"></script>
+    <script src="app.js?v=13"></script>
 </body>
 </html>

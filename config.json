@@ -1,0 +1,14 @@
+{
+    "logo_url": "/assets/logo.jpg",
+    "favicon_url": "/assets/logo.jpg",
+    "default_theme": "dark",
+    "analytics_id": "",
+    "meta_title": "Komivex - Baca Manga Terpopuler",
+    "meta_description": "Platform baca komik (Manga, Manhua, Manhwa) terpopuler dan terlengkap gratis bahasa Indonesia dengan antarmuka modern dan premium.",
+    "verification_code": "",
+    "custom_ad_codes": {
+        "header": "",
+        "sidebar": "",
+        "footer": ""
+    }
+}
