@@ -1,0 +1,22 @@
+# .htaccess untuk Komivex di cPanel (Phusion Passenger / Python App)
+# Letakkan file ini di root folder aplikasi (public_html atau folder lain)
+# GANTI: /home/USERNAME/public_html dengan path asli folder aplikasi Anda
+
+PassengerEnabled On
+PassengerAppRoot /home/USERNAME/public_html
+PassengerBaseURI /
+
+# Proteksi file sensitif - tidak boleh diakses langsung dari browser
+<Files "config.json">
+    Require all denied
+</Files>
+
+# Bypass Passenger untuk file statis (performa lebih cepat)
+<FilesMatch "\.(css|js|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|webp|xml)$">
+    PassengerEnabled Off
+</FilesMatch>
+
+# Redirect semua request non-file ke WSGI app
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ passenger_wsgi.py/$1 [QSA,L]

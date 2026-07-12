@@ -1,292 +1,501 @@
 import sys
 import os
+import urllib.request
 import urllib.parse
+import re
 import json
+import mimetypes
+import ssl
 
-# Add current directory to path
-sys.path.insert(0, os.path.dirname(__file__))
+# ─────────────────────────────────────────────
+# Path Setup (agar semua import dari folder ini)
+# ─────────────────────────────────────────────
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, BASE_DIR)
+os.chdir(BASE_DIR)
 
-# Import functions from server.py
-from server import fetch_html, parse_card, scrape_details, ctx
+# ─────────────────────────────────────────────
+# Konfigurasi situs (config.json)
+# ─────────────────────────────────────────────
+DEFAULT_CONFIG = {
+    "logo_url": "/assets/logo.jpg",
+    "favicon_url": "/assets/logo.jpg",
+    "default_theme": "dark",
+    "analytics_id": "",
+    "meta_title": "Komivex - Baca Manga Terpopuler",
+    "meta_description": "Platform baca komik (Manga, Manhua, Manhwa) terpopuler dan terlengkap gratis bahasa Indonesia.",
+    "verification_code": "",
+    "scraper_target_domain": "https://bacakomik.my",
+    "custom_ad_codes": {
+        "head": "",
+        "body": "",
+        "header": "",
+        "sidebar_1": "",
+        "sidebar_2": "",
+        "footer": ""
+    }
+}
 
+CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
+site_config = DEFAULT_CONFIG.copy()
+if os.path.exists(CONFIG_FILE):
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            loaded = json.load(f)
+            if "custom_ad_codes" in loaded:
+                ads = loaded["custom_ad_codes"]
+                if "sidebar" in ads and ads["sidebar"] and not ads.get("sidebar_1"):
+                    ads["sidebar_1"] = ads["sidebar"]
+            site_config.update(loaded)
+    except Exception as e:
+        print("Error loading config:", e)
+
+
+def get_scraper_domain():
+    return site_config.get("scraper_target_domain", "https://bacakomik.my").rstrip('/')
+
+
+# ─────────────────────────────────────────────
+# SSL & HTTP Helpers
+# ─────────────────────────────────────────────
+ctx = ssl.create_default_context()
+ctx.check_hostname = False
+ctx.verify_mode = ssl.CERT_NONE
+
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Connection': 'keep-alive',
+}
+
+
+def fetch_html(url):
+    req = urllib.request.Request(url, headers=HEADERS)
+    with urllib.request.urlopen(req, context=ctx, timeout=15) as res:
+        return res.read().decode('utf-8', errors='ignore')
+
+
+# ─────────────────────────────────────────────
+# Parsers
+# ─────────────────────────────────────────────
+def parse_card(part):
+    slug_match = re.search(r'href="https?://[^/]+/komik/([^/]+)/"', part)
+    title_match = re.search(r'title="(?:Komik|Manga)\s*([^"]+)"', part)
+    if not title_match:
+        title_match = re.search(r'<h4>([^<]+)</h4>', part)
+
+    cover_match = re.search(r'data-lazy-src="([^"]+)"', part)
+    if not cover_match:
+        cover_match = re.search(r'<noscript><img[^>]+src="([^"]+)"', part)
+
+    cover = "/assets/manga_cover_1.jpg"
+    if cover_match:
+        cover = cover_match.group(1)
+    else:
+        img_srcs = re.findall(r'<img[^>]+src="([^"]+)"', part)
+        for src in img_srcs:
+            if not src.startswith('data:'):
+                cover = src
+                break
+
+    type_match = re.search(r'class="typeflag\s*([^"]+)"', part)
+    rating_match = re.search(r'<div class="rating">.*?<i>([\d\.]+)</i>', part, re.DOTALL)
+
+    chapter_match = re.search(r'Chapter\s+([\d\.]+)', part)
+    chapter_link_match = re.search(r'href="https?://[^"]+chapter-([\d\.]+)(?:/[^"]*)?"', part)
+    ch_num = "1"
+    if chapter_match:
+        ch_num = chapter_match.group(1)
+    elif chapter_link_match:
+        ch_num = chapter_link_match.group(1)
+
+    slug = slug_match.group(1).strip() if slug_match else ""
+    title = title_match.group(1).strip() if title_match else slug.replace('-', ' ').title()
+    cover_proxied = f"/api/proxy-img?url={urllib.parse.quote(cover)}" if cover and not cover.startswith('/') else cover
+    manga_type = type_match.group(1).strip().capitalize() if type_match else "Manga"
+    rating = rating_match.group(1) if rating_match else "7.0"
+
+    return {
+        "id": slug,
+        "slug": slug,
+        "title": title,
+        "cover": cover_proxied,
+        "type": manga_type,
+        "rating": rating,
+        "latest_chapter": ch_num,
+    }
+
+
+def scrape_details(slug):
+    try:
+        url = f"{get_scraper_domain()}/komik/{slug}/"
+        content = fetch_html(url)
+
+        title_match = re.search(r'<h1[^>]*>([^<]+)</h1>', content)
+        title = title_match.group(1).strip() if title_match else slug.replace('-', ' ').title()
+
+        cover_match = re.search(r'<div class="thumb"[^>]*>.*?<img[^>]+src="([^"]+)"', content, re.DOTALL)
+        if not cover_match:
+            cover_match = re.search(r'<noscript><img[^>]+src="([^"]+)"', content)
+        cover_raw = cover_match.group(1) if cover_match else ""
+        cover = f"/api/proxy-img?url={urllib.parse.quote(cover_raw)}" if cover_raw and not cover_raw.startswith('/') else "/assets/manga_cover_1.jpg"
+
+        synopsis_match = re.search(r'<div class="desc">.*?<p>(.*?)</p>', content, re.DOTALL)
+        synopsis = re.sub(r'<[^>]+>', '', synopsis_match.group(1)) if synopsis_match else "Tidak ada sinopsis."
+
+        type_match = re.search(r'Type.*?<a[^>]+>([^<]+)</a>', content, re.DOTALL)
+        genre_matches = re.findall(r'class="genre-item"[^>]*>.*?<a[^>]+>([^<]+)</a>', content, re.DOTALL)
+        if not genre_matches:
+            genre_matches = re.findall(r'href="https?://[^/]+/genres/[^"]+">([^<]+)</a>', content)
+
+        status_match = re.search(r'Status.*?<span[^>]*>([^<]+)</span>', content, re.DOTALL)
+
+        chapter_blocks = re.findall(r'<li[^>]+>\s*<a[^>]+href="https?://[^/]+/([^/]+)-chapter-([\d\.]+)/?"[^>]*>', content)
+        chapters = []
+        seen = set()
+        for match in chapter_blocks:
+            ch_num_str = match[1]
+            try:
+                ch_num = float(ch_num_str)
+                ch_num_key = int(ch_num) if ch_num.is_integer() else ch_num
+            except:
+                continue
+            if ch_num_key not in seen:
+                seen.add(ch_num_key)
+                chapters.append({"chapter_number": ch_num_key, "title": f"Chapter {ch_num_key}"})
+
+        chapters.sort(key=lambda x: x["chapter_number"], reverse=True)
+
+        return {
+            "id": slug,
+            "slug": slug,
+            "title": title,
+            "cover": cover,
+            "synopsis": synopsis,
+            "type": type_match.group(1).strip() if type_match else "Manga",
+            "genres": genre_matches[:10],
+            "status": status_match.group(1).strip() if status_match else "Ongoing",
+            "chapters": chapters
+        }
+    except Exception as e:
+        print("Error scraping details:", e)
+        return None
+
+
+# ─────────────────────────────────────────────
+# WSGI Response Helpers
+# ─────────────────────────────────────────────
+def json_response(start_response, data, status="200 OK"):
+    body = json.dumps(data, ensure_ascii=False).encode('utf-8')
+    start_response(status, [
+        ('Content-Type', 'application/json; charset=utf-8'),
+        ('Access-Control-Allow-Origin', '*'),
+        ('Cache-Control', 'no-cache'),
+    ])
+    return [body]
+
+
+def error_response(start_response, code, message):
+    start_response(f'{code}', [('Content-Type', 'text/plain')])
+    return [message.encode('utf-8')]
+
+
+# ─────────────────────────────────────────────
+# WSGI Application Entry Point
+# ─────────────────────────────────────────────
 def application(environ, start_response):
-    path = environ.get('PATH_INFO', '')
+    method = environ.get('REQUEST_METHOD', 'GET').upper()
+    path = environ.get('PATH_INFO', '/')
     query_string = environ.get('QUERY_STRING', '')
-    
-    # Normalize path suffix
+
     if path != '/' and path.endswith('/'):
         path = path.rstrip('/')
-        
-    # 1. API: Get Popular Manga
-    if path == '/api/popular':
-        start_response('200 OK', [
-            ('Content-Type', 'application/json'),
-            ('Access-Control-Allow-Origin', '*')
-        ])
+
+    params = urllib.parse.parse_qs(query_string)
+
+    # ──────────────────────────
+    # POST: Save Config
+    # ──────────────────────────
+    if method == 'POST' and path == '/api/config':
         try:
-            html_content = fetch_html("https://bacakomik.my/")
-            pop_start = html_content.find('mangapopuler')
-            pop_end = html_content.find('chapterbaru')
-            if pop_start != -1 and pop_end != -1:
-                block = html_content[pop_start:pop_end]
+            length = int(environ.get('CONTENT_LENGTH', 0))
+            body = environ['wsgi.input'].read(length)
+            updates = json.loads(body)
+            # Merge top-level and nested custom_ad_codes
+            for key, val in updates.items():
+                if key == "custom_ad_codes" and isinstance(val, dict):
+                    if "custom_ad_codes" not in site_config:
+                        site_config["custom_ad_codes"] = {}
+                    site_config["custom_ad_codes"].update(val)
+                else:
+                    site_config[key] = val
+            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+                json.dump(site_config, f, ensure_ascii=False, indent=2)
+            return json_response(start_response, {"status": "ok"})
+        except Exception as e:
+            return json_response(start_response, {"status": "error", "message": str(e)}, "500 Internal Server Error")
+
+    # ──────────────────────────
+    # POST: Upload logo / favicon
+    # ──────────────────────────
+    if method == 'POST' and path == '/api/upload':
+        try:
+            file_type = environ.get('HTTP_X_FILE_TYPE', '')
+            if file_type not in ('logo', 'favicon'):
+                return json_response(start_response, {"status": "error", "message": "Invalid file type"}, "400 Bad Request")
+            length = int(environ.get('CONTENT_LENGTH', 0))
+            file_data = environ['wsgi.input'].read(length)
+            assets_dir = os.path.join(BASE_DIR, 'assets')
+            os.makedirs(assets_dir, exist_ok=True)
+            filename = f"{file_type}_uploaded.png"
+            filepath = os.path.join(assets_dir, filename)
+            with open(filepath, 'wb') as f:
+                f.write(file_data)
+            url_path = f"/assets/{filename}"
+            if file_type == 'logo':
+                site_config['logo_url'] = url_path
             else:
-                block = html_content
-                
+                site_config['favicon_url'] = url_path
+            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+                json.dump(site_config, f, ensure_ascii=False, indent=2)
+            return json_response(start_response, {"status": "ok", "url": url_path})
+        except Exception as e:
+            return json_response(start_response, {"status": "error", "message": str(e)}, "500 Internal Server Error")
+
+    # ──────────────────────────
+    # GET: /api/config
+    # ──────────────────────────
+    if method == 'GET' and path == '/api/config':
+        return json_response(start_response, site_config)
+
+    # ──────────────────────────
+    # GET: /api/popular
+    # ──────────────────────────
+    if method == 'GET' and path == '/api/popular':
+        try:
+            domain = get_scraper_domain()
+            content = fetch_html(f"{domain}/")
+            pop_start = content.find('mangapopuler')
+            pop_end = content.find('chapterbaru')
+            block = content[pop_start:pop_end] if pop_start != -1 and pop_end != -1 else content
             parts = block.split('<div class="animepost">')[1:]
             mangas = []
             for idx, p in enumerate(parts[:12]):
                 card = parse_card(p)
                 card["rank"] = idx + 1
                 mangas.append(card)
-            return [json.dumps(mangas).encode('utf-8')]
+            return json_response(start_response, mangas)
         except Exception as e:
-            return [json.dumps([]).encode('utf-8')]
+            return json_response(start_response, [])
 
-    # 2. API: Get Latest Manga Updates
-    elif path == '/api/updates':
-        start_response('200 OK', [
-            ('Content-Type', 'application/json'),
-            ('Access-Control-Allow-Origin', '*')
-        ])
+    # ──────────────────────────
+    # GET: /api/updates
+    # ──────────────────────────
+    if method == 'GET' and path == '/api/updates':
         try:
-            html_content = fetch_html("https://bacakomik.my/")
-            pop_end = html_content.find('chapterbaru')
-            if pop_end != -1:
-                block = html_content[pop_end:]
-            else:
-                block = html_content
-                
+            domain = get_scraper_domain()
+            content = fetch_html(f"{domain}/")
+            pop_end = content.find('chapterbaru')
+            block = content[pop_end:] if pop_end != -1 else content
             parts = block.split('<div class="animepost">')[1:]
+            times = ["2 mnt lalu","15 mnt lalu","45 mnt lalu","1 jam lalu","2 jam lalu","4 jam lalu","6 jam lalu","12 jam lalu","1 hari lalu"]
             mangas = []
-            times = ["2 mnt lalu", "15 mnt lalu", "45 mnt lalu", "1 jam lalu", "2 jam lalu", "4 jam lalu", "6 jam lalu", "12 jam lalu", "1 hari lalu"]
             for idx, p in enumerate(parts[:9]):
                 card = parse_card(p)
                 card["updatedAt"] = times[idx] if idx < len(times) else "Baru saja"
                 mangas.append(card)
-            return [json.dumps(mangas).encode('utf-8')]
+            return json_response(start_response, mangas)
         except Exception as e:
-            return [json.dumps([]).encode('utf-8')]
+            return json_response(start_response, [])
 
-    # 3. API: Search suggestions
-    elif path.startswith('/api/search'):
-        params = urllib.parse.parse_qs(query_string)
+    # ──────────────────────────
+    # GET: /api/search
+    # ──────────────────────────
+    if method == 'GET' and path.startswith('/api/search'):
         query = params.get('q', [''])[0].strip()
-        
-        start_response('200 OK', [
-            ('Content-Type', 'application/json'),
-            ('Access-Control-Allow-Origin', '*')
-        ])
         if not query:
-            return [json.dumps([]).encode('utf-8')]
-            
+            return json_response(start_response, [])
         try:
-            html_content = fetch_html(f"https://bacakomik.my/?s={urllib.parse.quote(query)}")
-            parts = html_content.split('<div class="animepost">')[1:]
-            results = []
-            for p in parts[:6]:
-                results.append(parse_card(p))
-            return [json.dumps(results).encode('utf-8')]
+            domain = get_scraper_domain()
+            content = fetch_html(f"{domain}/?s={urllib.parse.quote(query)}")
+            parts = content.split('<div class="animepost">')[1:]
+            return json_response(start_response, [parse_card(p) for p in parts[:6]])
         except Exception as e:
-            return [json.dumps([]).encode('utf-8')]
+            return json_response(start_response, [])
 
-    # 4. API: Get Paginated Manga Directory
-    elif path.startswith('/api/mangas'):
-        params = urllib.parse.parse_qs(query_string)
+    # ──────────────────────────
+    # GET: /api/mangas
+    # ──────────────────────────
+    if method == 'GET' and path.startswith('/api/mangas'):
         page = int(params.get('page', ['1'])[0])
         manga_type = params.get('type', [''])[0]
         genre = params.get('genre', [''])[0]
         sort = params.get('sort', [''])[0]
-        
-        start_response('200 OK', [
-            ('Content-Type', 'application/json'),
-            ('Access-Control-Allow-Origin', '*')
-        ])
         try:
-            import re
+            domain = get_scraper_domain()
             query_parts = []
             if manga_type and manga_type != 'all':
                 query_parts.append(f"type={manga_type.lower()}")
             if genre and genre != 'all':
                 query_parts.append(f"genre={genre.lower()}")
             if sort:
-                sort_val = 'update'
-                if sort == 'rating' or sort == 'popular':
-                    sort_val = 'popular'
-                elif sort == 'alphabet':
-                    sort_val = 'title'
-                query_parts.append(f"order={sort_val}")
-                
-            query_str = "&".join(query_parts)
-            url = f"https://bacakomik.my/daftar-komik/page/{page}/"
-            if query_str:
-                url += f"?{query_str}"
-                
-            html_content = fetch_html(url)
-            parts = html_content.split('<div class="animepost">')[1:]
-            paginated_data = []
-            for p in parts:
-                paginated_data.append(parse_card(p))
-                
+                sort_map = {'rating': 'popular', 'popular': 'popular', 'alphabet': 'title'}
+                query_parts.append(f"order={sort_map.get(sort, 'update')}")
+            qs = "&".join(query_parts)
+            url = f"{domain}/daftar-komik/page/{page}/"
+            if qs:
+                url += f"?{qs}"
+            content = fetch_html(url)
+            parts = content.split('<div class="animepost">')[1:]
+            data = [parse_card(p) for p in parts]
             last_page = 1
-            pag_match = re.search(r'<div class="pagination">([\s\S]*?)</div>', html_content)
-            if pag_match:
-                pages = re.findall(r'page/(\d+)/', pag_match.group(1))
+            pag = re.search(r'<div class="pagination">([\s\S]*?)</div>', content)
+            if pag:
+                pages = re.findall(r'page/(\d+)/', pag.group(1))
                 if pages:
                     last_page = max(map(int, pages))
-            
-            payload = {
+            return json_response(start_response, {
                 "current_page": page,
                 "last_page": last_page,
-                "total": last_page * len(paginated_data) if paginated_data else 0,
-                "data": paginated_data
-            }
-            return [json.dumps(payload).encode('utf-8')]
+                "total": last_page * len(data) if data else 0,
+                "data": data
+            })
         except Exception as e:
-            return [json.dumps({"current_page":1,"last_page":1,"total":0,"data":[]}).encode('utf-8')]
+            return json_response(start_response, {"current_page":1,"last_page":1,"total":0,"data":[]})
 
-    # 5. API: Get Manga Details
-    elif path.startswith('/api/manga'):
-        params = urllib.parse.parse_qs(query_string)
+    # ──────────────────────────
+    # GET: /api/manga?id=<slug>
+    # ──────────────────────────
+    if method == 'GET' and path.startswith('/api/manga') and not path.startswith('/api/mangas'):
         slug = params.get('id', [''])[0]
-        
-        start_response('200 OK', [
-            ('Content-Type', 'application/json'),
-            ('Access-Control-Allow-Origin', '*')
-        ])
         if not slug:
-            return [json.dumps({"error": "Missing id parameter"}).encode('utf-8')]
-            
+            return json_response(start_response, {"error": "Missing id"}, "400 Bad Request")
         details = scrape_details(slug)
         if details:
-            return [json.dumps(details).encode('utf-8')]
-        else:
-            return [json.dumps({"error": "Failed to scrape details"}).encode('utf-8')]
+            return json_response(start_response, details)
+        return json_response(start_response, {"error": "Not found"}, "404 Not Found")
 
-    # 6. API: Get Chapter Reading Images
-    elif path.startswith('/api/read'):
-        params = urllib.parse.parse_qs(query_string)
+    # ──────────────────────────
+    # GET: /api/read
+    # ──────────────────────────
+    if method == 'GET' and path.startswith('/api/read'):
         manga_id = params.get('manga', [''])[0]
         chapter_num = params.get('chapter', ['1'])[0]
-        
-        start_response('200 OK', [
-            ('Content-Type', 'application/json'),
-            ('Access-Control-Allow-Origin', '*')
-        ])
         if not manga_id:
-            return [json.dumps({"error": "Missing manga parameter"}).encode('utf-8')]
-            
+            return json_response(start_response, {"error": "Missing manga"}, "400 Bad Request")
         try:
-            import re
-            reader_url = f"https://bacakomik.my/{manga_id}-chapter-{chapter_num}/"
+            domain = get_scraper_domain()
+            reader_url = f"{domain}/{manga_id}-chapter-{chapter_num}/"
             content = fetch_html(reader_url)
-            
             start_pos = content.find('<div id="anjay_ini_id_kh">')
             if start_pos != -1:
                 end_pos = content.find('<div class="navig"', start_pos)
-                if end_pos != -1:
-                    block = content[start_pos:end_pos]
-                else:
-                    block = content[start_pos:start_pos+30000]
-                
+                block = content[start_pos:end_pos] if end_pos != -1 else content[start_pos:start_pos+30000]
                 noscript_imgs = re.findall(r'<noscript><img[^>]+src="([^"]+)"', block)
-                mapped_images = []
-                for src in noscript_imgs:
-                    if src.startswith('//'):
-                        src = 'https:' + src
-                    mapped_images.append(f"/api/proxy-img?url={urllib.parse.quote(src)}")
+                images = [f"/api/proxy-img?url={urllib.parse.quote(src if not src.startswith('//') else 'https:'+src)}" for src in noscript_imgs]
             else:
-                mapped_images = []
-            
+                images = []
             details = scrape_details(manga_id)
             all_chapters = details["chapters"] if details else []
             manga_title = details["title"] if details else manga_id.replace('-', ' ').title()
-            
-            if not all_chapters:
-                latest_ch = 100
-                try:
-                    latest_ch = int(float(chapter_num))
-                except:
-                    pass
-                for c in range(1, latest_ch + 20):
-                    all_chapters.append({
-                        "chapter_number": c,
-                        "title": f"Chapter {c}"
-                    })
-                all_chapters.sort(key=lambda x: x["chapter_number"], reverse=True)
-            
             payload = {
                 "manga_title": manga_title,
                 "manga_id": manga_id,
                 "chapter_title": f"Chapter {chapter_num}",
                 "chapter_number": chapter_num,
-                "images": mapped_images,
-                "prev_chapter": str(int(float(chapter_num)) - 1) if float(chapter_num) > 1 else None,
-                "next_chapter": str(int(float(chapter_num)) + 1) if float(chapter_num) < len(all_chapters) else None,
+                "images": images,
+                "prev_chapter": None,
+                "next_chapter": None,
                 "chapters": all_chapters
             }
-            
-            if details and details.get("chapters"):
-                ch_nums = [c["chapter_number"] for c in details["chapters"]]
+            if all_chapters:
+                ch_nums = [c["chapter_number"] for c in all_chapters]
                 try:
-                    curr_num = float(chapter_num)
-                    if curr_num.is_integer():
-                        curr_num = int(curr_num)
-                    if curr_num in ch_nums:
-                        idx = ch_nums.index(curr_num)
+                    curr = float(chapter_num)
+                    curr_key = int(curr) if curr.is_integer() else curr
+                    if curr_key in ch_nums:
+                        idx = ch_nums.index(curr_key)
                         payload["prev_chapter"] = str(ch_nums[idx + 1]) if idx + 1 < len(ch_nums) else None
                         payload["next_chapter"] = str(ch_nums[idx - 1]) if idx - 1 >= 0 else None
-                except Exception as ex:
-                    print("Error resolving prev/next:", ex)
-            
-            return [json.dumps(payload).encode('utf-8')]
+                except Exception:
+                    pass
+            return json_response(start_response, payload)
         except Exception as e:
-            return [json.dumps({"error": str(e)}).encode('utf-8')]
+            return json_response(start_response, {"error": str(e)}, "500 Internal Server Error")
 
-    # 7. API: Proxy Image
-    elif path.startswith('/api/proxy-img'):
-        import urllib.request
-        params = urllib.parse.parse_qs(query_string)
+    # ──────────────────────────
+    # GET: /api/proxy-img
+    # ──────────────────────────
+    if method == 'GET' and path.startswith('/api/proxy-img'):
         img_url = params.get('url', [''])[0]
-        
         if not img_url:
-            start_response('400 Bad Request', [('Content-Type', 'text/plain')])
-            return [b'Missing url parameter']
-            
+            return error_response(start_response, '400 Bad Request', 'Missing url')
         try:
-            req = urllib.request.Request(
-                img_url,
-                headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-                    'Referer': 'https://bacakomik.my/'
-                }
-            )
-            with urllib.request.urlopen(req, context=ctx, timeout=10) as response:
-                content_type = response.headers.get('Content-Type', 'image/jpeg')
+            req = urllib.request.Request(img_url, headers={
+                'User-Agent': 'Mozilla/5.0',
+                'Referer': get_scraper_domain() + '/'
+            })
+            with urllib.request.urlopen(req, context=ctx, timeout=10) as resp:
+                ctype = resp.headers.get('Content-Type', 'image/jpeg')
                 start_response('200 OK', [
-                    ('Content-Type', content_type),
-                    ('Cache-Control', 'public, max-age=86400')
+                    ('Content-Type', ctype),
+                    ('Cache-Control', 'public, max-age=86400'),
+                    ('Access-Control-Allow-Origin', '*'),
                 ])
-                return [response.read()]
+                return [resp.read()]
         except Exception as e:
-            start_response('500 Internal Server Error', [('Content-Type', 'text/plain')])
-            return [str(e).encode('utf-8')]
+            return error_response(start_response, '500 Internal Server Error', str(e))
 
-    # 8. Serve Static Files
-    else:
-        # If accessing the root, serve index.html
-        local_path = path.lstrip('/')
-        if not local_path or local_path == '':
-            local_path = 'index.html'
-            
-        if os.path.exists(local_path) and os.path.isfile(local_path):
-            import mimetypes
-            content_type, _ = mimetypes.guess_type(local_path)
-            if not content_type:
-                content_type = 'text/html' if local_path.endswith('.html') else 'application/octet-stream'
-                
-            start_response('200 OK', [('Content-Type', content_type)])
-            with open(local_path, 'rb') as f:
-                return [f.read()]
-        else:
-            start_response('404 Not Found', [('Content-Type', 'text/html')])
-            return [b'<h1>404 Not Found</h1>']
+    # ──────────────────────────
+    # POST: Generate Sitemap
+    # ──────────────────────────
+    if method == 'POST' and path == '/api/generate-sitemap':
+        try:
+            domain = get_scraper_domain()
+            host = environ.get('HTTP_HOST', 'localhost')
+            html_content = fetch_html(domain)
+            slugs = list(set(re.findall(r'href="https?://[^/]+/komik/([^/]+)/"', html_content)))[:30]
+            xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            xml += f'  <url><loc>https://{host}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n'
+            for slug in slugs:
+                xml += f'  <url><loc>https://{host}/#manga-{slug}</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>\n'
+            xml += '</urlset>'
+            with open(os.path.join(BASE_DIR, "sitemap.xml"), "w", encoding="utf-8") as sf:
+                sf.write(xml)
+            return json_response(start_response, {"status": "success", "message": "Sitemap.xml berhasil di-generate!"})
+        except Exception as e:
+            return json_response(start_response, {"status": "error", "message": str(e)}, "500 Internal Server Error")
+
+    # ──────────────────────────
+    # POST: Clear Cache (mock)
+    # ──────────────────────────
+    if method == 'POST' and path == '/api/clear-cache':
+        return json_response(start_response, {"status": "success", "message": "Cache berhasil dibersihkan!"})
+
+    # ──────────────────────────
+    # Static Files & index.html
+    # ──────────────────────────
+    local_path = path.lstrip('/')
+    if not local_path:
+        local_path = 'index.html'
+
+    full_path = os.path.join(BASE_DIR, local_path)
+    if os.path.isfile(full_path):
+        ctype, _ = mimetypes.guess_type(full_path)
+        if not ctype:
+            ctype = 'text/html' if full_path.endswith('.html') else 'application/octet-stream'
+        # Force correct MIME types
+        if full_path.endswith('.css'):
+            ctype = 'text/css'
+        elif full_path.endswith('.js'):
+            ctype = 'application/javascript'
+        start_response('200 OK', [
+            ('Content-Type', ctype),
+            ('Cache-Control', 'public, max-age=3600'),
+        ])
+        with open(full_path, 'rb') as f:
+            return [f.read()]
+
+    start_response('404 Not Found', [('Content-Type', 'text/html')])
+    return [b'<h1>404 Not Found</h1>']
