@@ -21,6 +21,7 @@ DEFAULT_CONFIG = {
     "verification_code": "",
     "scraper_target_domain": "https://bacakomik.my",
     "custom_ad_codes": {
+        "head": "",
         "header": "",
         "sidebar": "",
         "footer": ""

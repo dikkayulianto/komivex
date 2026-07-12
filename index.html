@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Link to Stylesheet -->
-    <link rel="stylesheet" href="styles.css?v=14">
+    <link rel="stylesheet" href="styles.css?v=15">
 </head>
 <body class="dark-theme">
     <!-- Background Blob Glows -->
@@ -342,6 +342,10 @@
                     <!-- CUSTOM AD SCRIPTS CONFIGURATION -->
                     <div class="admin-card" style="grid-column: 1 / -1; margin-top: 8px;">
                         <h3>Custom Kode Script Iklan (HTML/Adsterra/Iframe)</h3>
+                        <div class="admin-form-group-vertical" style="margin-bottom: 16px;">
+                            <label for="ad-code-head" class="admin-form-label" style="display: block; margin-bottom: 8px;">Kode Script HTML Head (Popunder/Auto Ads/Anti-Adblock):</label>
+                            <textarea id="ad-code-head" rows="3" style="width: 100%; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 12px; font-family: monospace; font-size: 12px; outline: none; resize: vertical;" placeholder="Paste script iklan Popunder atau Auto Ads yang diletakkan di <head> di sini..."></textarea>
+                        </div>
                         <div class="admin-form-group-vertical" style="margin-bottom: 16px;">
                             <label for="ad-code-header" class="admin-form-label" style="display: block; margin-bottom: 8px;">Kode Iklan Header (Top Banner):</label>
                             <textarea id="ad-code-header" rows="3" style="width: 100%; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 12px; font-family: monospace; font-size: 12px; outline: none; resize: vertical;" placeholder="Paste script iklan Header di sini (misal iframe atau script adsterra)..."></textarea>
@@ -750,6 +754,6 @@
     <div class="toast-container" id="toast-container"></div>
 
     <!-- Link to JavaScript -->
-    <script src="app.js?v=14"></script>
+    <script src="app.js?v=15"></script>
 </body>
 </html>

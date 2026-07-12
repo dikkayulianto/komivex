@@ -1676,20 +1676,42 @@ function setupEventListeners() {
     // Save Custom Ad Codes
     const saveAdCodesBtn = document.getElementById("save-ad-codes-btn");
     if (saveAdCodesBtn) {
-        saveAdCodesBtn.addEventListener("click", () => {
+        saveAdCodesBtn.addEventListener("click", async () => {
+            const headCode = document.getElementById("ad-code-head").value;
             const headerCode = document.getElementById("ad-code-header").value;
             const sidebarCode = document.getElementById("ad-code-sidebar").value;
             const footerCode = document.getElementById("ad-code-footer").value;
 
             customAdCodes = {
+                head: headCode,
                 header: headerCode,
                 sidebar: sidebarCode,
                 footer: footerCode
             };
 
             localStorage.setItem("komivex_ad_codes", JSON.stringify(customAdCodes));
-            applyAllAdCodes();
-            showToast("Script iklan berhasil disimpan dan diterapkan!", "success");
+
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        custom_ad_codes: customAdCodes
+                    })
+                });
+
+                if (response.ok) {
+                    showToast("Script iklan berhasil disimpan dan diterapkan!", "success");
+                    loadAndApplySiteConfig();
+                } else {
+                    showToast("Gagal menyimpan script iklan ke server", "info");
+                    applyAllAdCodes();
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Eror koneksi ke server", "error");
+                applyAllAdCodes();
+            }
         });
     }
 
@@ -2150,6 +2172,25 @@ async function loadAndApplySiteConfig() {
         if (siteConfig.custom_ad_codes) {
             customAdCodes = siteConfig.custom_ad_codes;
             applyAllAdCodes();
+            
+            // Populate head script textarea
+            const inputHeadCode = document.getElementById("ad-code-head");
+            if (inputHeadCode) {
+                inputHeadCode.value = siteConfig.custom_ad_codes.head || "";
+            }
+            
+            // Inject custom head scripts dynamically to document head
+            if (siteConfig.custom_ad_codes.head && siteConfig.custom_ad_codes.head.trim() !== "") {
+                let headAdsContainer = document.getElementById("custom-head-scripts");
+                if (!headAdsContainer) {
+                    headAdsContainer = document.createElement("div");
+                    headAdsContainer.id = "custom-head-scripts";
+                    headAdsContainer.style.display = "none";
+                    document.head.appendChild(headAdsContainer);
+                }
+                headAdsContainer.innerHTML = siteConfig.custom_ad_codes.head;
+                executeScripts(headAdsContainer);
+            }
         }
         
     } catch (e) {
