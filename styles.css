@@ -2311,6 +2311,7 @@ body.light-theme .manga-card:hover {
         border-radius: 16px 16px 0 0;
         max-height: 94vh;
         margin-top: auto;
+        overflow-y: auto;
     }
 
     #detail-modal.modal-backdrop {
