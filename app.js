@@ -1201,6 +1201,14 @@ function switchTab(tabName) {
         }
     });
 
+    document.querySelectorAll(".mobile-bottom-nav .mobile-nav-item[data-tab]").forEach(item => {
+        if (item.getAttribute("data-tab") === tabName) {
+            item.classList.add("active");
+        } else {
+            item.classList.remove("active");
+        }
+    });
+
     document.querySelectorAll(".tab-content").forEach(content => {
         content.classList.remove("active");
     });

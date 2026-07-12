@@ -827,6 +827,7 @@ body.light-theme .manga-card:hover {
 /* Horizontal card design for updates */
 .update-card {
     display: flex;
+    align-items: center;
     gap: 14px;
     padding: 12px;
     background-color: var(--bg-card);
