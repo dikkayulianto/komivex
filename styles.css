@@ -2729,6 +2729,14 @@ body.light-theme .manga-card:hover {
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.admin-form-group-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+    width: 100%;
+}
+
 .admin-form-label {
     font-size: 13px;
     font-weight: 600;

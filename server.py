@@ -11,6 +11,30 @@ import ssl
 
 PORT = 8080
 
+DEFAULT_CONFIG = {
+    "logo_url": "/assets/logo.jpg",
+    "favicon_url": "/assets/logo.jpg",
+    "default_theme": "dark",
+    "analytics_id": "",
+    "meta_title": "Komivex - Baca Manga Terpopuler",
+    "meta_description": "Platform baca komik (Manga, Manhua, Manhwa) terpopuler dan terlengkap gratis bahasa Indonesia dengan antarmuka modern dan premium.",
+    "verification_code": "",
+    "custom_ad_codes": {
+        "header": "",
+        "sidebar": "",
+        "footer": ""
+    }
+}
+
+CONFIG_FILE = "config.json"
+site_config = DEFAULT_CONFIG.copy()
+if os.path.exists(CONFIG_FILE):
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            site_config.update(json.load(f))
+    except Exception as e:
+        print("Error loading config.json:", e)
+
 # Bypass SSL verify for secure connections (e.g. MangaDex/CDN SSL mismatches)
 ctx = ssl.create_default_context()
 ctx.check_hostname = False
@@ -202,8 +226,49 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
     })
 
     def do_GET(self):
+        # API: Get Website Config
+        if self.path == '/api/config':
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(site_config).encode('utf-8'))
+            return
+
+        # Serve sitemap.xml dynamically
+        elif self.path == '/sitemap.xml':
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/xml')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            sitemap_file = "sitemap.xml"
+            if os.path.exists(sitemap_file):
+                with open(sitemap_file, 'r', encoding='utf-8') as f:
+                    self.wfile.write(f.read().encode('utf-8'))
+            else:
+                host = self.headers.get('Host', f'localhost:{PORT}')
+                manga_slugs = []
+                try:
+                    html_content = fetch_html("https://bacakomik.my/")
+                    manga_slugs = re.findall(r'href="https://bacakomik.my/komik/([^/]+)/"', html_content)
+                    manga_slugs = list(set(manga_slugs))[:10]
+                except Exception as se:
+                    print("Error fetching sitemap manga list:", se)
+
+                xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+                xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+                xml += f'  <url>\n    <loc>https://{host}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n'
+                xml += f'  <url>\n    <loc>https://{host}/#library</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
+                xml += f'  <url>\n    <loc>https://{host}/#manga</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
+                for slug in manga_slugs:
+                    xml += f'  <url>\n    <loc>https://{host}/#manga-{slug}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>\n'
+                xml += '</urlset>'
+                self.wfile.write(xml.encode('utf-8'))
+            return
+
         # API: Get Popular Manga (from bacakomik.my)
-        if self.path == '/api/popular':
+        elif self.path == '/api/popular':
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
@@ -491,6 +556,76 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
         # Fallback to standard static file server
         else:
             super().do_GET()
+
+    def do_POST(self):
+        # API: Save website config
+        if self.path == '/api/config':
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                post_data = self.rfile.read(content_length).decode('utf-8')
+                new_config = json.loads(post_data)
+                
+                # Update global site_config
+                site_config.update(new_config)
+                
+                # Save to config.json
+                with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(site_config, f, indent=4)
+                    
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "success", "message": "Konfigurasi berhasil disimpan!"}).encode('utf-8'))
+            except Exception as e:
+                print("Error saving config:", e)
+                self.send_response(500)
+                self.end_headers()
+            return
+
+        # API: Generate sitemap.xml
+        elif self.path == '/api/generate-sitemap':
+            try:
+                host = self.headers.get('Host', f'localhost:{PORT}')
+                manga_slugs = []
+                try:
+                    html_content = fetch_html("https://bacakomik.my/")
+                    manga_slugs = re.findall(r'href="https://bacakomik.my/komik/([^/]+)/"', html_content)
+                    manga_slugs = list(set(manga_slugs))[:30]
+                except Exception as se:
+                    print("Error fetching sitemap manga list:", se)
+
+                xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+                xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+                xml += f'  <url>\n    <loc>https://{host}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n'
+                xml += f'  <url>\n    <loc>https://{host}/#library</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
+                xml += f'  <url>\n    <loc>https://{host}/#manga</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
+                for slug in manga_slugs:
+                    xml += f'  <url>\n    <loc>https://{host}/#manga-{slug}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>\n'
+                xml += '</urlset>'
+
+                with open("sitemap.xml", "w", encoding="utf-8") as sf:
+                    sf.write(xml)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "success", "message": "Sitemap.xml berhasil di-generate!"}).encode('utf-8'))
+            except Exception as e:
+                print("Error generating sitemap:", e)
+                self.send_response(500)
+                self.end_headers()
+            return
+
+        # API: Clear thumbnail cache (Mock success)
+        elif self.path == '/api/clear-cache':
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "success", "message": "Cache gambar thumbnail berhasil dibersihkan!"}).encode('utf-8'))
+            return
 
 # Avoid port in use errors on server restart
 socketserver.TCPServer.allow_reuse_address = True

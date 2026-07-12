@@ -1702,6 +1702,110 @@ function setupEventListeners() {
         }
     });
 
+    // Save Custom SEO Settings
+    const saveSeoSettingsBtn = document.getElementById("save-seo-settings-btn");
+    if (saveSeoSettingsBtn) {
+        saveSeoSettingsBtn.addEventListener("click", async () => {
+            const metaTitle = document.getElementById("seo-meta-title").value;
+            const metaDesc = document.getElementById("seo-meta-desc").value;
+            const verifCode = document.getElementById("seo-search-console").value;
+            
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        meta_title: metaTitle,
+                        meta_description: metaDesc,
+                        verification_code: verifCode
+                    })
+                });
+                
+                if (response.ok) {
+                    showToast("Setelan SEO berhasil disimpan!", "success");
+                    loadAndApplySiteConfig();
+                } else {
+                    showToast("Gagal menyimpan setelan SEO", "info");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Eror koneksi ke server", "error");
+            }
+        });
+    }
+
+    // Save Custom Branding & Analytics Settings
+    const saveBrandingBtn = document.getElementById("save-branding-btn");
+    if (saveBrandingBtn) {
+        saveBrandingBtn.addEventListener("click", async () => {
+            const logoUrl = document.getElementById("brand-logo-url").value;
+            const faviconUrl = document.getElementById("brand-favicon-url").value;
+            const analyticsId = document.getElementById("brand-analytics-id").value;
+            
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        logo_url: logoUrl,
+                        favicon_url: faviconUrl,
+                        analytics_id: analyticsId
+                    })
+                });
+                
+                if (response.ok) {
+                    showToast("Setelan Branding berhasil disimpan!", "success");
+                    loadAndApplySiteConfig();
+                } else {
+                    showToast("Gagal menyimpan setelan Branding", "info");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Eror koneksi ke server", "error");
+            }
+        });
+    }
+
+    // Generate sitemap.xml Action
+    const generateSitemapBtn = document.getElementById("admin-generate-sitemap-btn");
+    if (generateSitemapBtn) {
+        generateSitemapBtn.addEventListener("click", async () => {
+            showToast("Sedang men-generate sitemap...", "info");
+            try {
+                const response = await fetch('/api/generate-sitemap', { method: 'POST' });
+                const resData = await response.json();
+                if (response.ok && resData.status === "success") {
+                    showToast(resData.message || "Sitemap.xml berhasil di-generate!", "success");
+                } else {
+                    showToast("Gagal men-generate sitemap.xml", "info");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Eror koneksi ke server", "error");
+            }
+        });
+    }
+
+    // Clear Thumbnail Cache Action
+    const clearCacheBtn = document.getElementById("admin-clear-cache-btn");
+    if (clearCacheBtn) {
+        clearCacheBtn.addEventListener("click", async () => {
+            showToast("Sedang membersihkan cache...", "info");
+            try {
+                const response = await fetch('/api/clear-cache', { method: 'POST' });
+                const resData = await response.json();
+                if (response.ok && resData.status === "success") {
+                    showToast(resData.message || "Cache berhasil dibersihkan!", "success");
+                } else {
+                    showToast("Gagal membersihkan cache", "info");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Eror koneksi ke server", "error");
+            }
+        });
+    }
+
     const rBackBtn = document.getElementById("reader-back-btn");
     const rBottomBackBtn = document.getElementById("reader-bottom-back-btn");
     if (rBackBtn) rBackBtn.addEventListener("click", goBackFromReader);
@@ -1862,6 +1966,106 @@ function applyAllAdCodes() {
     updateAdContent("footer-ads-zone", customAdCodes.footer, defaultAdContents.footer);
 }
 
+let siteConfig = {};
+
+async function loadAndApplySiteConfig() {
+    try {
+        const response = await fetch('/api/config');
+        if (!response.ok) throw new Error("Gagal mengambil konfigurasi");
+        siteConfig = await response.json();
+        
+        // Apply meta title and description
+        if (siteConfig.meta_title) {
+            document.title = siteConfig.meta_title;
+        }
+        
+        // Meta description
+        let metaDescTag = document.querySelector('meta[name="description"]');
+        if (!metaDescTag) {
+            metaDescTag = document.createElement('meta');
+            metaDescTag.name = "description";
+            document.head.appendChild(metaDescTag);
+        }
+        if (siteConfig.meta_description) {
+            metaDescTag.content = siteConfig.meta_description;
+        }
+        
+        // Search Console Verification Code
+        if (siteConfig.verification_code) {
+            let verifTag = document.querySelector('meta[name="google-site-verification"]');
+            if (!verifTag) {
+                verifTag = document.createElement('meta');
+                verifTag.name = "google-site-verification";
+                document.head.appendChild(verifTag);
+            }
+            verifTag.content = siteConfig.verification_code;
+        }
+        
+        // Apply Logo URL
+        if (siteConfig.logo_url) {
+            document.querySelectorAll('.logo-link img').forEach(img => {
+                img.src = siteConfig.logo_url;
+            });
+        }
+        
+        // Apply Favicon URL
+        if (siteConfig.favicon_url) {
+            let faviconLink = document.querySelector('link[rel="icon"]');
+            if (!faviconLink) {
+                faviconLink = document.createElement('link');
+                faviconLink.rel = "icon";
+                document.head.appendChild(faviconLink);
+            }
+            faviconLink.href = siteConfig.favicon_url;
+        }
+        
+        // Apply Google Analytics Tracking Code
+        if (siteConfig.analytics_id) {
+            const gaId = siteConfig.analytics_id;
+            if (!document.getElementById('google-analytics-script')) {
+                const gaScript = document.createElement('script');
+                gaScript.id = 'google-analytics-script';
+                gaScript.async = true;
+                gaScript.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
+                document.head.appendChild(gaScript);
+                
+                const gaInit = document.createElement('script');
+                gaInit.innerHTML = `
+                    window.dataLayer = window.dataLayer || [];
+                    function gtag(){dataLayer.push(arguments);}
+                    gtag('js', new Date());
+                    gtag('config', '${gaId}');
+                `;
+                document.head.appendChild(gaInit);
+            }
+        }
+        
+        // Populate inputs in Admin Panel if visible
+        const inputMetaTitle = document.getElementById("seo-meta-title");
+        const inputMetaDesc = document.getElementById("seo-meta-desc");
+        const inputVerifCode = document.getElementById("seo-search-console");
+        const inputLogoUrl = document.getElementById("brand-logo-url");
+        const inputFaviconUrl = document.getElementById("brand-favicon-url");
+        const inputAnalyticsId = document.getElementById("brand-analytics-id");
+        
+        if (inputMetaTitle) inputMetaTitle.value = siteConfig.meta_title || "";
+        if (inputMetaDesc) inputMetaDesc.value = siteConfig.meta_description || "";
+        if (inputVerifCode) inputVerifCode.value = siteConfig.verification_code || "";
+        if (inputLogoUrl) inputLogoUrl.value = siteConfig.logo_url || "";
+        if (inputFaviconUrl) inputFaviconUrl.value = siteConfig.favicon_url || "";
+        if (inputAnalyticsId) inputAnalyticsId.value = siteConfig.analytics_id || "";
+        
+        // Apply custom ads if present in siteConfig
+        if (siteConfig.custom_ad_codes) {
+            customAdCodes = siteConfig.custom_ad_codes;
+            applyAllAdCodes();
+        }
+        
+    } catch (e) {
+        console.error("Error applying site configuration:", e);
+    }
+}
+
 // 9. Initial Build Fire
 function init() {
     const savedTheme = localStorage.getItem("komikid_theme") || "dark";
@@ -1878,6 +2082,7 @@ function init() {
     }
 
     updateAuthUI();
+    loadAndApplySiteConfig();
     applyAllAdCodes();
     renderPopularGrid();
     renderUpdatesGrid();

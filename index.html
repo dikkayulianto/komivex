@@ -356,6 +356,47 @@
                         </div>
                         <button class="btn-primary" id="save-ad-codes-btn" style="padding: 0 24px; height: 38px; border-radius: 19px;">Simpan Script Iklan</button>
                     </div>
+
+                    <!-- SEO & METADATA CONFIGURATION -->
+                    <div class="admin-card">
+                        <h3>Optimasi SEO & Verifikasi</h3>
+                        <div class="admin-form-group-vertical" style="margin-bottom: 16px;">
+                            <label for="seo-meta-title" class="admin-form-label" style="display: block; margin-bottom: 8px;">Meta Title Template:</label>
+                            <input type="text" id="seo-meta-title" style="width: 100%; height: 38px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 0 12px; font-size: 13px; outline: none;" placeholder="Template Judul Web...">
+                        </div>
+                        <div class="admin-form-group-vertical" style="margin-bottom: 16px;">
+                            <label for="seo-meta-desc" class="admin-form-label" style="display: block; margin-bottom: 8px;">Meta Description:</label>
+                            <textarea id="seo-meta-desc" rows="3" style="width: 100%; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 12px; font-size: 12px; outline: none; resize: vertical;" placeholder="Deskripsi ringkas web..."></textarea>
+                        </div>
+                        <div class="admin-form-group-vertical" style="margin-bottom: 16px;">
+                            <label for="seo-search-console" class="admin-form-label" style="display: block; margin-bottom: 8px;">Google Search Console Verification Code:</label>
+                            <input type="text" id="seo-search-console" style="width: 100%; height: 38px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 0 12px; font-size: 13px; outline: none;" placeholder="Kode google-site-verification...">
+                        </div>
+                        <button class="btn-primary" id="save-seo-settings-btn" style="padding: 0 20px; height: 36px; border-radius: 18px; font-size: 13px;">Simpan Setelan SEO</button>
+                    </div>
+
+                    <!-- WEBSITE SETTINGS, BRANDING & MAINTENANCE -->
+                    <div class="admin-card">
+                        <h3>Setelan Branding & Pemeliharaan</h3>
+                        <div class="admin-form-group-vertical" style="margin-bottom: 16px;">
+                            <label for="brand-logo-url" class="admin-form-label" style="display: block; margin-bottom: 8px;">URL Logo Website (Rasio Horizontal):</label>
+                            <input type="text" id="brand-logo-url" style="width: 100%; height: 38px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 0 12px; font-size: 13px; outline: none;" placeholder="/assets/logo.jpg">
+                        </div>
+                        <div class="admin-form-group-vertical" style="margin-bottom: 16px;">
+                            <label for="brand-favicon-url" class="admin-form-label" style="display: block; margin-bottom: 8px;">URL Favicon Website (Ikon 1:1):</label>
+                            <input type="text" id="brand-favicon-url" style="width: 100%; height: 38px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 0 12px; font-size: 13px; outline: none;" placeholder="/assets/logo.jpg">
+                        </div>
+                        <div class="admin-form-group-vertical" style="margin-bottom: 16px;">
+                            <label for="brand-analytics-id" class="admin-form-label" style="display: block; margin-bottom: 8px;">Google Analytics (G-ID):</label>
+                            <input type="text" id="brand-analytics-id" style="width: 100%; height: 38px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 0 12px; font-size: 13px; outline: none;" placeholder="G-XXXXXX">
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                            <button class="btn-primary" id="save-branding-btn" style="padding: 0 20px; height: 36px; border-radius: 18px; font-size: 13px;">Simpan Branding</button>
+                            <button class="btn-secondary" id="admin-generate-sitemap-btn" style="padding: 0 16px; height: 36px; border-radius: 18px; font-size: 12px;">Generate Sitemap.xml</button>
+                            <button class="btn-secondary" id="admin-clear-cache-btn" style="padding: 0 16px; height: 36px; border-radius: 18px; font-size: 12px;">Regenerate Thumbnails</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
