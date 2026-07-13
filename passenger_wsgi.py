@@ -290,7 +290,9 @@ def application(environ, start_response):
                 mangas.append(card)
             return json_response(start_response, mangas)
         except Exception as e:
-            return json_response(start_response, [])
+            import traceback
+            traceback.print_exc()
+            return json_response(start_response, {"error": str(e)}, "500 Internal Server Error")
 
     # ──────────────────────────
     # GET: /api/updates
@@ -310,7 +312,9 @@ def application(environ, start_response):
                 mangas.append(card)
             return json_response(start_response, mangas)
         except Exception as e:
-            return json_response(start_response, [])
+            import traceback
+            traceback.print_exc()
+            return json_response(start_response, {"error": str(e)}, "500 Internal Server Error")
 
     # ──────────────────────────
     # GET: /api/search
@@ -325,7 +329,9 @@ def application(environ, start_response):
             parts = content.split('<div class="animepost">')[1:]
             return json_response(start_response, [parse_card(p) for p in parts[:6]])
         except Exception as e:
-            return json_response(start_response, [])
+            import traceback
+            traceback.print_exc()
+            return json_response(start_response, {"error": str(e)}, "500 Internal Server Error")
 
     # ──────────────────────────
     # GET: /api/mangas
@@ -365,7 +371,9 @@ def application(environ, start_response):
                 "data": data
             })
         except Exception as e:
-            return json_response(start_response, {"current_page":1,"last_page":1,"total":0,"data":[]})
+            import traceback
+            traceback.print_exc()
+            return json_response(start_response, {"error": str(e)}, "500 Internal Server Error")
 
     # ──────────────────────────
     # GET: /api/manga?id=<slug>
