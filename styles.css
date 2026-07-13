@@ -807,21 +807,9 @@ body.light-theme .manga-card:hover {
 
 /* UPDATE MANGA TERBARU GRID */
 .updates-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-}
-
-@media (max-width: 900px) {
-    .updates-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width: 580px) {
-    .updates-grid {
-        grid-template-columns: 1fr;
-    }
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 /* Horizontal card design for updates */
@@ -2268,7 +2256,6 @@ body.light-theme .manga-card:hover {
 
     /* Updates grid single column on phone */
     .updates-grid {
-        grid-template-columns: 1fr;
         gap: 10px;
     }
 
