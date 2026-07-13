@@ -154,19 +154,23 @@ def scrape_details(slug):
 
         status_match = re.search(r'Status.*?<span[^>]*>([^<]+)</span>', content, re.DOTALL)
 
-        chapter_blocks = re.findall(r'<li[^>]+>\s*<a[^>]+href="https?://[^/]+/([^/]+)-chapter-([\d\.]+)/?"[^>]*>', content)
+        # Chapters
+        ch_matches = re.findall(r'href="https?://[^/]+/([^"]+-chapter-([\d\.]+)/)"', content)
         chapters = []
         seen = set()
-        for match in chapter_blocks:
-            ch_num_str = match[1]
+        for ch_path, num_str in ch_matches:
             try:
-                ch_num = float(ch_num_str)
+                ch_num = float(num_str)
                 ch_num_key = int(ch_num) if ch_num.is_integer() else ch_num
             except:
                 continue
             if ch_num_key not in seen:
                 seen.add(ch_num_key)
-                chapters.append({"chapter_number": ch_num_key, "title": f"Chapter {ch_num_key}"})
+                chapters.append({
+                    "chapter_number": ch_num_key,
+                    "title": f"Chapter {ch_num_key}",
+                    "url": ch_path
+                })
 
         chapters.sort(key=lambda x: x["chapter_number"], reverse=True)
 
