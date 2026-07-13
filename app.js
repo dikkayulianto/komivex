@@ -893,6 +893,39 @@ function renderChaptersList(manga) {
             });
             chaptersContainer.appendChild(item);
         });
+
+        if (manga.chapters.length > 20) {
+            const loadMoreBtn = document.createElement("button");
+            loadMoreBtn.className = "btn-secondary";
+            loadMoreBtn.style.width = "100%";
+            loadMoreBtn.style.marginTop = "12px";
+            loadMoreBtn.style.padding = "12px";
+            loadMoreBtn.style.borderRadius = "8px";
+            loadMoreBtn.style.cursor = "pointer";
+            loadMoreBtn.style.backgroundColor = "var(--bg-tertiary)";
+            loadMoreBtn.style.color = "var(--text-primary)";
+            loadMoreBtn.style.border = "1px solid var(--border-color)";
+            loadMoreBtn.style.fontWeight = "600";
+            loadMoreBtn.textContent = `Lihat ${manga.chapters.length - 20} Chapter Lainnya`;
+            
+            loadMoreBtn.onclick = () => {
+                loadMoreBtn.remove();
+                manga.chapters.slice(20).forEach(ch => {
+                    const item = document.createElement("div");
+                    item.className = `chapter-item ${userReadList.includes(ch.chapter_number) ? 'read' : ''}`;
+                    item.innerHTML = `
+                        <span class="chapter-name">${ch.title}</span>
+                        <span class="chapter-date">Terbaru</span>
+                    `;
+                    item.addEventListener("click", () => {
+                        closeMangaDetail();
+                        openChapterReader(manga.id, ch.chapter_number);
+                    });
+                    chaptersContainer.appendChild(item);
+                });
+            };
+            chaptersContainer.appendChild(loadMoreBtn);
+        }
     } else {
         const latestNum = parseInt(manga.latestChapter) || 0;
         const displayCount = Math.min(20, latestNum);
@@ -920,6 +953,44 @@ function renderChaptersList(manga) {
             });
 
             chaptersContainer.appendChild(item);
+        }
+
+        if (latestNum > 20) {
+            const loadMoreBtn = document.createElement("button");
+            loadMoreBtn.className = "btn-secondary";
+            loadMoreBtn.style.width = "100%";
+            loadMoreBtn.style.marginTop = "12px";
+            loadMoreBtn.style.padding = "12px";
+            loadMoreBtn.style.borderRadius = "8px";
+            loadMoreBtn.style.cursor = "pointer";
+            loadMoreBtn.style.backgroundColor = "var(--bg-tertiary)";
+            loadMoreBtn.style.color = "var(--text-primary)";
+            loadMoreBtn.style.border = "1px solid var(--border-color)";
+            loadMoreBtn.style.fontWeight = "600";
+            loadMoreBtn.textContent = `Lihat ${latestNum - 20} Chapter Lainnya`;
+
+            loadMoreBtn.onclick = () => {
+                loadMoreBtn.remove();
+                for (let i = 20; i < latestNum; i++) {
+                    const chNum = latestNum - i;
+                    if (chNum <= 0) break;
+
+                    const item = document.createElement("div");
+                    item.className = `chapter-item ${userReadList.includes(chNum) ? 'read' : ''}`;
+                    item.innerHTML = `
+                        <span class="chapter-name">Chapter ${chNum}</span>
+                        <span class="chapter-date">${(i * 2) + ' hari lalu'}</span>
+                    `;
+
+                    item.addEventListener("click", () => {
+                        closeMangaDetail();
+                        openChapterReader(manga.id, chNum);
+                    });
+
+                    chaptersContainer.appendChild(item);
+                }
+            };
+            chaptersContainer.appendChild(loadMoreBtn);
         }
     }
 }
