@@ -127,6 +127,7 @@ def parse_card(part):
         "type": manga_type,
         "rating": rating,
         "latest_chapter": ch_num,
+        "latestChapter": ch_num,
     }
 
 

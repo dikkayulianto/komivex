@@ -582,8 +582,8 @@ async function renderMangaDirectory(page = 1) {
                 <div class="manga-card-overlay">
                     <h3 class="manga-card-title">${manga.title}</h3>
                     <div class="manga-card-meta">
-                        <span class="manga-card-ch">Ch. ${manga.latestChapter}</span>
-                        <span class="manga-card-rating">⭐ ${manga.rating.toFixed(1)}</span>
+                        <span class="manga-card-ch">Ch. ${manga.latestChapter || manga.latest_chapter || 1}</span>
+                        <span class="manga-card-rating">⭐ ${(parseFloat(manga.rating) || 7.0).toFixed(1)}</span>
                     </div>
                 </div>
             `;
