@@ -17,6 +17,10 @@ try:
 except Exception:
     pass
 
+import db_helper
+db_helper.init_db()
+
+
 # ─────────────────────────────────────────────
 # Konfigurasi situs (config.json)
 # ─────────────────────────────────────────────
@@ -221,6 +225,74 @@ def application(environ, start_response):
         path = path.rstrip('/')
 
     params = urllib.parse.parse_qs(query_string)
+
+    # ──────────────────────────
+    # POST: Add Comment
+    # ──────────────────────────
+    if method == 'POST' and path == '/api/comments':
+        try:
+            length = int(environ.get('CONTENT_LENGTH', 0))
+            body = environ['wsgi.input'].read(length)
+            data = json.loads(body)
+            
+            manga_id = data.get('manga_id')
+            manga_title = data.get('manga_title')
+            chapter_id = data.get('chapter_id')
+            username = data.get('username')
+            email = data.get('email')
+            content = data.get('content')
+            
+            if not all([manga_id, manga_title, username, email, content]):
+                return json_response(start_response, {"status": "error", "message": "Missing required fields"}, "400 Bad Request")
+                
+            comment_id = db_helper.add_comment(manga_id, manga_title, chapter_id, username, email, content)
+            return json_response(start_response, {"status": "success", "comment_id": comment_id})
+        except Exception as e:
+            return json_response(start_response, {"status": "error", "message": str(e)}, "500 Internal Server Error")
+
+    # ──────────────────────────
+    # POST: Mark Notification as Read
+    # ──────────────────────────
+    if method == 'POST' and path == '/api/notifications/read':
+        try:
+            length = int(environ.get('CONTENT_LENGTH', 0))
+            body = environ['wsgi.input'].read(length)
+            data = json.loads(body)
+            
+            notification_id = data.get('id')
+            target_user = data.get('email')
+            role = data.get('role')
+            
+            if role == 'admin':
+                target_user = 'admin'
+                
+            db_helper.mark_notification_as_read(notification_id, target_user)
+            return json_response(start_response, {"status": "success"})
+        except Exception as e:
+            return json_response(start_response, {"status": "error", "message": str(e)}, "500 Internal Server Error")
+
+    # ──────────────────────────
+    # GET: Get Comments
+    # ──────────────────────────
+    if method == 'GET' and path.startswith('/api/comments'):
+        manga_id = params.get('manga', [''])[0]
+        chapter_id = params.get('chapter', [None])[0]
+        if not manga_id:
+            return json_response(start_response, {"error": "Missing manga parameter"}, "400 Bad Request")
+        comments = db_helper.get_comments(manga_id, chapter_id)
+        return json_response(start_response, comments)
+
+    # ──────────────────────────
+    # GET: Get Notifications
+    # ──────────────────────────
+    if method == 'GET' and path.startswith('/api/notifications'):
+        email = params.get('email', [''])[0]
+        role = params.get('role', ['user'])[0]
+        target_user = 'admin' if role == 'admin' else email
+        if not target_user:
+            return json_response(start_response, [])
+        notifications = db_helper.get_notifications(target_user)
+        return json_response(start_response, notifications)
 
     # ──────────────────────────
     # POST: Save Config

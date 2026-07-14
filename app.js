@@ -1015,6 +1015,7 @@ function toggleChapterRead(mangaId, chNum, element) {
 
 let currentMangaIdForReader = null;
 let currentChapterNumberForReader = null;
+let currentMangaTitleForReader = null;
 
 async function openChapterReader(mangaId, chapterNumber) {
     currentMangaIdForReader = mangaId;
@@ -1084,6 +1085,11 @@ async function openChapterReader(mangaId, chapterNumber) {
         }
         
         if (data.error) throw new Error(data.error);
+        
+        currentMangaTitleForReader = data.manga_title || mangaId.replace(/-/g, ' ').toUpperCase();
+        
+        // Fetch comments for this manga and chapter
+        fetchComments(currentMangaIdForReader, currentChapterNumberForReader);
 
         // Update headers texts
         const rMangaTitle = document.getElementById("reader-manga-title");
@@ -1449,6 +1455,16 @@ function updateAuthUI() {
             if (mobNavDashboard) mobNavDashboard.style.display = "flex";
             if (mobNavAdmin) mobNavAdmin.style.display = "none";
         }
+
+        // Show bell wrapper and comments form
+        const bellWrapper = document.getElementById("notification-bell-wrapper");
+        if (bellWrapper) bellWrapper.style.display = "inline-block";
+        const commentsAuth = document.getElementById("reader-comments-auth-required");
+        const commentsForm = document.getElementById("reader-comments-form-wrapper");
+        if (commentsAuth) commentsAuth.style.display = "none";
+        if (commentsForm) commentsForm.style.display = "block";
+        
+        startNotificationsPolling();
     } else {
         loginModalBtn.textContent = "Masuk";
         loginModalBtn.style.background = "linear-gradient(135deg, #a855f7 0%, #ec4899 100%)";
@@ -1459,6 +1475,18 @@ function updateAuthUI() {
         if (mobNavTheme) mobNavTheme.style.display = "flex";
         if (mobNavDashboard) mobNavDashboard.style.display = "none";
         if (mobNavAdmin) mobNavAdmin.style.display = "none";
+
+        // Hide bell wrapper and comments form
+        const bellWrapper = document.getElementById("notification-bell-wrapper");
+        if (bellWrapper) bellWrapper.style.display = "none";
+        const dropdown = document.getElementById("notification-dropdown");
+        if (dropdown) dropdown.style.display = "none";
+        const commentsAuth = document.getElementById("reader-comments-auth-required");
+        const commentsForm = document.getElementById("reader-comments-form-wrapper");
+        if (commentsAuth) commentsAuth.style.display = "block";
+        if (commentsForm) commentsForm.style.display = "none";
+        
+        stopNotificationsPolling();
     }
 }
 
@@ -1991,6 +2019,106 @@ function setupEventListeners() {
             }
         });
     }
+
+    // Setup Comments Form Submission
+    const commentForm = document.getElementById("reader-comment-form");
+    if (commentForm) {
+        commentForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const input = document.getElementById("reader-comment-input");
+            const content = input.value.trim();
+            if (!content || !currentUser) return;
+            
+            try {
+                const response = await fetch('/api/comments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        manga_id: currentMangaIdForReader,
+                        manga_title: currentMangaTitleForReader,
+                        chapter_id: currentChapterNumberForReader,
+                        username: currentUser.username,
+                        email: currentUser.email,
+                        content: content
+                    })
+                });
+                const resData = await response.json();
+                if (response.ok && resData.status === "success") {
+                    input.value = "";
+                    showToast("Komentar berhasil dikirim!", "success");
+                    fetchComments(currentMangaIdForReader, currentChapterNumberForReader);
+                } else {
+                    showToast("Gagal mengirim komentar", "info");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Eror mengirim komentar", "error");
+            }
+        });
+    }
+
+    // Auth redirection from comments auth block
+    const commentLoginBtn = document.getElementById("reader-comments-login-btn");
+    if (commentLoginBtn) {
+        commentLoginBtn.addEventListener("click", () => {
+            const loginModal = document.getElementById("login-modal");
+            if (loginModal) {
+                loginModal.classList.add("open");
+                document.body.style.overflow = "hidden";
+            }
+        });
+    }
+
+    // Toggle Notifications Dropdown
+    const bellBtn = document.getElementById("notification-bell-btn");
+    if (bellBtn) {
+        bellBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const dropdown = document.getElementById("notification-dropdown");
+            if (dropdown) {
+                const isShowing = dropdown.style.display === "flex";
+                dropdown.style.display = isShowing ? "none" : "flex";
+                if (!isShowing) {
+                    fetchNotifications();
+                }
+            }
+        });
+    }
+
+    // Mark All Notifications as Read
+    const markAllReadBtn = document.getElementById("notification-mark-all-read");
+    if (markAllReadBtn) {
+        markAllReadBtn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            if (!currentUser) return;
+            try {
+                const response = await fetch('/api/notifications/read', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: 'all',
+                        email: currentUser.email,
+                        role: currentUser.role
+                    })
+                });
+                if (response.ok) {
+                    showToast("Semua notifikasi ditandai dibaca", "success");
+                    fetchNotifications();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    }
+
+    // Document click to close notification dropdown when clicking outside
+    document.addEventListener("click", (e) => {
+        const dropdown = document.getElementById("notification-dropdown");
+        const bellWrapper = document.getElementById("notification-bell-wrapper");
+        if (dropdown && bellWrapper && !bellWrapper.contains(e.target)) {
+            dropdown.style.display = "none";
+        }
+    });
 
     const rBackBtn = document.getElementById("reader-back-btn");
     const rBottomBackBtn = document.getElementById("reader-bottom-back-btn");
@@ -2537,3 +2665,193 @@ document.addEventListener("DOMContentLoaded", init);
         };
     }
 })();
+
+// Global notifications polling interval
+let notificationsPollInterval = null;
+
+// Escape HTML utility
+function escapeHTML(str) {
+    if (!str) return "";
+    return str.replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;")
+              .replace(/'/g, "&#039;");
+}
+
+// Fetch Comments
+async function fetchComments(mangaId, chapterId) {
+    try {
+        const url = `/api/comments?manga=${encodeURIComponent(mangaId)}${chapterId ? `&chapter=${encodeURIComponent(chapterId)}` : ''}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Gagal mengambil komentar");
+        const comments = await res.json();
+        
+        const listContainer = document.getElementById("reader-comments-list");
+        if (!listContainer) return;
+        
+        listContainer.innerHTML = "";
+        if (comments.length === 0) {
+            listContainer.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">Belum ada komentar. Jadilah yang pertama berkomentar!</p>`;
+            return;
+        }
+        
+        comments.forEach(comment => {
+            const item = document.createElement("div");
+            item.className = "comment-item";
+            
+            const firstLetter = comment.username.charAt(0).toUpperCase();
+            const timeStr = new Date(comment.created_at + "Z").toLocaleString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+                day: '2-digit',
+                month: '2-digit'
+            });
+            
+            const chapterBadge = comment.chapter_id ? `<span class="comment-chapter-label">Ch. ${comment.chapter_id}</span>` : '';
+            
+            item.innerHTML = `
+                <div class="comment-avatar">${firstLetter}</div>
+                <div class="comment-content">
+                    <div class="comment-meta">
+                        <span class="comment-username">${escapeHTML(comment.username)}</span>
+                        ${chapterBadge}
+                        <span class="comment-time">${timeStr}</span>
+                    </div>
+                    <div class="comment-body">${escapeHTML(comment.content)}</div>
+                </div>
+            `;
+            listContainer.appendChild(item);
+        });
+    } catch (err) {
+        console.error("Error fetching comments:", err);
+    }
+}
+
+// Fetch Notifications and update badge + lists
+async function fetchNotifications() {
+    if (!currentUser) return;
+    try {
+        const response = await fetch(`/api/notifications?email=${encodeURIComponent(currentUser.email)}&role=${encodeURIComponent(currentUser.role)}`);
+        if (!response.ok) throw new Error("Gagal mengambil notifikasi");
+        const notifications = await response.json();
+        
+        // 1. Update Badge
+        const unreadCount = notifications.filter(n => !n.is_read).length;
+        const badge = document.getElementById("notification-unread-count");
+        if (badge) {
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount;
+                badge.style.display = "flex";
+            } else {
+                badge.style.display = "none";
+            }
+        }
+        
+        // 2. Populate Dropdown
+        const dropdownList = document.getElementById("notification-dropdown-list");
+        if (dropdownList) {
+            dropdownList.innerHTML = "";
+            if (notifications.length === 0) {
+                dropdownList.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px; font-size: 12px;">Tidak ada notifikasi</div>`;
+            } else {
+                notifications.forEach(n => {
+                    const item = document.createElement("div");
+                    item.className = `notification-item ${n.is_read ? '' : 'unread'}`;
+                    item.addEventListener("click", () => handleNotificationClick(n));
+                    
+                    const firstLetter = n.username.charAt(0).toUpperCase();
+                    const text = n.type === 'new_comment' 
+                        ? `Komentar baru di <strong>${escapeHTML(n.manga_title)}</strong> (Ch. ${n.chapter_id || 'Detail'}): "${escapeHTML(n.content)}"`
+                        : `Balasan baru dari <strong>${escapeHTML(n.username)}</strong> di thread <strong>${escapeHTML(n.manga_title)}</strong>: "${escapeHTML(n.content)}"`;
+                    
+                    item.innerHTML = `
+                        <div class="notification-item-avatar">${firstLetter}</div>
+                        <div class="notification-item-content">
+                            <div class="notification-item-text">${text}</div>
+                            <div class="notification-item-time">${new Date(n.created_at + "Z").toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</div>
+                        </div>
+                    `;
+                    dropdownList.appendChild(item);
+                });
+            }
+        }
+        
+        // 3. Populate Dashboard / Admin Panel Feed
+        const dashboardFeed = document.getElementById("dashboard-notifications-list");
+        const adminFeed = document.getElementById("admin-notifications-list");
+        
+        const feedToPopulate = currentUser.role === 'admin' ? adminFeed : dashboardFeed;
+        if (feedToPopulate) {
+            feedToPopulate.innerHTML = "";
+            if (notifications.length === 0) {
+                feedToPopulate.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">Tidak ada aktivitas diskusi baru.</p>`;
+            } else {
+                notifications.forEach(n => {
+                    const item = document.createElement("div");
+                    item.className = `notification-item ${n.is_read ? '' : 'unread'}`;
+                    item.addEventListener("click", () => handleNotificationClick(n));
+                    
+                    const firstLetter = n.username.charAt(0).toUpperCase();
+                    const text = n.type === 'new_comment' 
+                        ? `Komentar baru di <strong>${escapeHTML(n.manga_title)}</strong> (Ch. ${n.chapter_id || 'Detail'}): "${escapeHTML(n.content)}"`
+                        : `Balasan baru dari <strong>${escapeHTML(n.username)}</strong> di thread <strong>${escapeHTML(n.manga_title)}</strong>: "${escapeHTML(n.content)}"`;
+                    
+                    item.innerHTML = `
+                        <div class="notification-item-avatar">${firstLetter}</div>
+                        <div class="notification-item-content">
+                            <div class="notification-item-text">${text}</div>
+                            <div class="notification-item-time">${new Date(n.created_at + "Z").toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</div>
+                        </div>
+                    `;
+                    feedToPopulate.appendChild(item);
+                });
+            }
+        }
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+// Handle notification item click
+async function handleNotificationClick(n) {
+    // 1. Mark as read
+    try {
+        await fetch('/api/notifications/read', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: n.id,
+                email: currentUser.email,
+                role: currentUser.role
+            })
+        });
+    } catch (err) {
+        console.error(err);
+    }
+    
+    // 2. Hide dropdown
+    const dropdown = document.getElementById("notification-dropdown");
+    if (dropdown) dropdown.style.display = "none";
+    
+    // 3. Redirect user
+    if (n.chapter_id) {
+        openChapterReader(n.manga_id, n.chapter_id);
+    } else {
+        openMangaDetail(n.manga_id);
+    }
+}
+
+// Start notifications polling every 30 seconds
+function startNotificationsPolling() {
+    if (notificationsPollInterval) clearInterval(notificationsPollInterval);
+    fetchNotifications();
+    notificationsPollInterval = setInterval(fetchNotifications, 30000);
+}
+
+function stopNotificationsPolling() {
+    if (notificationsPollInterval) {
+        clearInterval(notificationsPollInterval);
+        notificationsPollInterval = null;
+    }
+}

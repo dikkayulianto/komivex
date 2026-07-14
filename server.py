@@ -8,6 +8,8 @@ import html
 import os
 import mimetypes
 import ssl
+import db_helper
+
 
 PORT = int(os.environ.get("PORT", 8080))
 
@@ -246,6 +248,48 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps(site_config).encode('utf-8'))
             return
+
+        # API: Get Comments
+        elif self.path.startswith('/api/comments'):
+            parsed_url = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed_url.query)
+            manga_id = params.get('manga', [''])[0]
+            chapter_id = params.get('chapter', [None])[0]
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            if not manga_id:
+                self.wfile.write(json.dumps({"error": "Missing manga parameter"}).encode('utf-8'))
+                return
+                
+            comments = db_helper.get_comments(manga_id, chapter_id)
+            self.wfile.write(json.dumps(comments).encode('utf-8'))
+            return
+
+        # API: Get Notifications
+        elif self.path.startswith('/api/notifications'):
+            parsed_url = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed_url.query)
+            email = params.get('email', [''])[0]
+            role = params.get('role', ['user'])[0]
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            target_user = 'admin' if role == 'admin' else email
+            if not target_user:
+                self.wfile.write(json.dumps([]).encode('utf-8'))
+                return
+                
+            notifications = db_helper.get_notifications(target_user)
+            self.wfile.write(json.dumps(notifications).encode('utf-8'))
+            return
+
 
         # Serve sitemap.xml dynamically
         elif self.path == '/sitemap.xml':
@@ -570,8 +614,66 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
             super().do_GET()
 
     def do_POST(self):
+        # API: Add Comment
+        if self.path == '/api/comments':
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                post_data = self.rfile.read(content_length).decode('utf-8')
+                data = json.loads(post_data)
+                
+                manga_id = data.get('manga_id')
+                manga_title = data.get('manga_title')
+                chapter_id = data.get('chapter_id')
+                username = data.get('username')
+                email = data.get('email')
+                content = data.get('content')
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                
+                if not all([manga_id, manga_title, username, email, content]):
+                    self.wfile.write(json.dumps({"status": "error", "message": "Missing required fields"}).encode('utf-8'))
+                    return
+                    
+                comment_id = db_helper.add_comment(manga_id, manga_title, chapter_id, username, email, content)
+                self.wfile.write(json.dumps({"status": "success", "comment_id": comment_id}).encode('utf-8'))
+            except Exception as e:
+                print("Error adding comment:", e)
+                self.send_response(500)
+                self.end_headers()
+            return
+
+        # API: Mark Notification as Read
+        elif self.path == '/api/notifications/read':
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                post_data = self.rfile.read(content_length).decode('utf-8')
+                data = json.loads(post_data)
+                
+                notification_id = data.get('id')
+                target_user = data.get('email')
+                role = data.get('role')
+                
+                if role == 'admin':
+                    target_user = 'admin'
+                
+                db_helper.mark_notification_as_read(notification_id, target_user)
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "success"}).encode('utf-8'))
+            except Exception as e:
+                print("Error reading notification:", e)
+                self.send_response(500)
+                self.end_headers()
+            return
+
         # API: Save website config
-        if self.path == '/api/config':
+        elif self.path == '/api/config':
             try:
                 content_length = int(self.headers.get('Content-Length', 0))
                 post_data = self.rfile.read(content_length).decode('utf-8')
@@ -688,8 +790,12 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps({"status": "success", "message": "Cache gambar thumbnail berhasil dibersihkan!"}).encode('utf-8'))
             return
 
+# Initialize database
+db_helper.init_db()
+
 # Avoid port in use errors on server restart
 socketserver.TCPServer.allow_reuse_address = True
+
 
 with socketserver.TCPServer(("0.0.0.0", PORT), ScraperHandler) as httpd:
     print(f"Komivex Server running at http://0.0.0.0:{PORT}")

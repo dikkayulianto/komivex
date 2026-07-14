@@ -8,8 +8,46 @@ import html
 import os
 import mimetypes
 import ssl
+import db_helper
 
-PORT = 8080
+
+PORT = int(os.environ.get("PORT", 8080))
+
+DEFAULT_CONFIG = {
+    "logo_url": "/assets/logo.jpg",
+    "favicon_url": "/assets/logo.jpg",
+    "default_theme": "dark",
+    "analytics_id": "",
+    "meta_title": "Komivex - Baca Manga Terpopuler",
+    "meta_description": "Platform baca komik (Manga, Manhua, Manhwa) terpopuler dan terlengkap gratis bahasa Indonesia dengan antarmuka modern dan premium.",
+    "verification_code": "",
+    "scraper_target_domain": "https://bacakomik.my",
+    "custom_ad_codes": {
+        "head": "",
+        "body": "",
+        "header": "",
+        "sidebar_1": "",
+        "sidebar_2": "",
+        "footer": ""
+    }
+}
+
+CONFIG_FILE = "config.json"
+site_config = DEFAULT_CONFIG.copy()
+if os.path.exists(CONFIG_FILE):
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            loaded_config = json.load(f)
+            if "custom_ad_codes" in loaded_config:
+                ads = loaded_config["custom_ad_codes"]
+                if "sidebar" in ads and ads["sidebar"] and not ads.get("sidebar_1"):
+                    ads["sidebar_1"] = ads["sidebar"]
+            site_config.update(loaded_config)
+    except Exception as e:
+        print("Error loading config.json:", e)
+
+def get_scraper_domain():
+    return site_config.get("scraper_target_domain", "https://bacakomik.my").rstrip('/')
 
 # Bypass SSL verify for secure connections (e.g. MangaDex/CDN SSL mismatches)
 ctx = ssl.create_default_context()
@@ -39,7 +77,7 @@ def fetch_html(url):
         return res.read().decode('utf-8', errors='ignore')
 
 def parse_card(part):
-    slug_match = re.search(r'href="https://bacakomik.my/komik/([^/]+)/"', part)
+    slug_match = re.search(r'href="https?://[^/]+/komik/([^/]+)/"', part)
     title_match = re.search(r'title="(?:Komik|Manga)\s*([^"]+)"', part)
     if not title_match:
         title_match = re.search(r'<h4>([^<]+)</h4>', part)
@@ -47,6 +85,16 @@ def parse_card(part):
     cover_match = re.search(r'data-lazy-src="([^"]+)"', part)
     if not cover_match:
         cover_match = re.search(r'<noscript><img[^>]+src="([^"]+)"', part)
+        
+    cover = "/assets/manga_cover_1.jpg"
+    if cover_match:
+        cover = cover_match.group(1)
+    else:
+        img_srcs = re.findall(r'<img[^>]+src="([^"]+)"', part)
+        for src in img_srcs:
+            if not src.startswith('data:'):
+                cover = src
+                break
         
     type_match = re.search(r'class="typeflag\s*([^"]+)"', part)
     
@@ -56,7 +104,7 @@ def parse_card(part):
         rating_match = re.search(r'(?:⭐|<i class="fa(?:s)? fa-star"></i>)\s*([\d\.]+)', part)
     
     # Chapter info
-    ch_match = re.search(r'href="https://bacakomik.my/([^"]+)-chapter-([\d\.]+)/"', part)
+    ch_match = re.search(r'href="https?://[^/]+/([^"]+)-chapter-([\d\.]+)/"', part)
     latest_ch = 1
     if ch_match:
         latest_ch = float(ch_match.group(2))
@@ -71,7 +119,6 @@ def parse_card(part):
 
     slug = slug_match.group(1) if slug_match else "unknown"
     title = title_match.group(1).strip() if title_match else slug.replace('-', ' ').title()
-    cover = cover_match.group(1) if cover_match else "/assets/manga_cover_1.jpg"
     manga_type = type_match.group(1).strip() if type_match else "Manga"
     rating = float(rating_match.group(1)) if rating_match else 7.5
 
@@ -96,7 +143,7 @@ def parse_card(part):
     }
 
 def scrape_details(slug):
-    url = f"https://bacakomik.my/komik/{slug}/"
+    url = f"{get_scraper_domain()}/komik/{slug}/"
     try:
         req = urllib.request.Request(url, headers=HEADERS)
         with urllib.request.urlopen(req, context=ctx, timeout=8) as res:
@@ -113,7 +160,7 @@ def scrape_details(slug):
             cover = cover_match.group(1) if cover_match else "/assets/manga_cover_1.jpg"
             if cover.startswith('//'):
                 cover = 'https:' + cover
-
+ 
             if cover.startswith('http'):
                 cover = f"/api/proxy-img?url={urllib.parse.quote(cover)}"
                 
@@ -146,7 +193,7 @@ def scrape_details(slug):
             rating = float(rating_match.group(1)) if rating_match else 7.5
             
             # Chapters
-            ch_matches = re.findall(r'href="https://bacakomik.my/([^"]+-chapter-([\d\.]+)/)"', content)
+            ch_matches = re.findall(r'href="https?://[^/]+/([^"]+-chapter-([\d\.]+)/)"', content)
             seen = set()
             chapters = []
             for ch_path, num_str in ch_matches:
@@ -193,15 +240,98 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
     })
 
     def do_GET(self):
+        # API: Get Website Config
+        if self.path == '/api/config':
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(site_config).encode('utf-8'))
+            return
+
+        # API: Get Comments
+        elif self.path.startswith('/api/comments'):
+            parsed_url = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed_url.query)
+            manga_id = params.get('manga', [''])[0]
+            chapter_id = params.get('chapter', [None])[0]
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            if not manga_id:
+                self.wfile.write(json.dumps({"error": "Missing manga parameter"}).encode('utf-8'))
+                return
+                
+            comments = db_helper.get_comments(manga_id, chapter_id)
+            self.wfile.write(json.dumps(comments).encode('utf-8'))
+            return
+
+        # API: Get Notifications
+        elif self.path.startswith('/api/notifications'):
+            parsed_url = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed_url.query)
+            email = params.get('email', [''])[0]
+            role = params.get('role', ['user'])[0]
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            target_user = 'admin' if role == 'admin' else email
+            if not target_user:
+                self.wfile.write(json.dumps([]).encode('utf-8'))
+                return
+                
+            notifications = db_helper.get_notifications(target_user)
+            self.wfile.write(json.dumps(notifications).encode('utf-8'))
+            return
+
+
+        # Serve sitemap.xml dynamically
+        elif self.path == '/sitemap.xml':
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/xml')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            sitemap_file = "sitemap.xml"
+            if os.path.exists(sitemap_file):
+                with open(sitemap_file, 'r', encoding='utf-8') as f:
+                    self.wfile.write(f.read().encode('utf-8'))
+            else:
+                host = self.headers.get('Host', f'localhost:{PORT}')
+                manga_slugs = []
+                try:
+                    html_content = fetch_html(get_scraper_domain())
+                    manga_slugs = re.findall(r'href="https?://[^/]+/komik/([^/]+)/"', html_content)
+                    manga_slugs = list(set(manga_slugs))[:10]
+                except Exception as se:
+                    print("Error fetching sitemap manga list:", se)
+
+                xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+                xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+                xml += f'  <url>\n    <loc>https://{host}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n'
+                xml += f'  <url>\n    <loc>https://{host}/#library</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
+                xml += f'  <url>\n    <loc>https://{host}/#manga</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
+                for slug in manga_slugs:
+                    xml += f'  <url>\n    <loc>https://{host}/#manga-{slug}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>\n'
+                xml += '</urlset>'
+                self.wfile.write(xml.encode('utf-8'))
+            return
+
         # API: Get Popular Manga (from bacakomik.my)
-        if self.path == '/api/popular':
+        elif self.path == '/api/popular':
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
             try:
-                html_content = fetch_html("https://bacakomik.my/")
+                html_content = fetch_html(get_scraper_domain())
                 pop_start = html_content.find('mangapopuler')
                 pop_end = html_content.find('chapterbaru')
                 if pop_start != -1 and pop_end != -1:
@@ -228,7 +358,7 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             
             try:
-                html_content = fetch_html("https://bacakomik.my/")
+                html_content = fetch_html(get_scraper_domain())
                 pop_end = html_content.find('chapterbaru')
                 if pop_end != -1:
                     block = html_content[pop_end:]
@@ -263,7 +393,7 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
                 return
                 
             try:
-                html_content = fetch_html(f"https://bacakomik.my/?s={urllib.parse.quote(query)}")
+                html_content = fetch_html(f"{get_scraper_domain()}/?s={urllib.parse.quote(query)}")
                 parts = html_content.split('<div class="animepost">')[1:]
                 results = []
                 for p in parts[:6]:
@@ -304,7 +434,7 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
                     query_parts.append(f"order={sort_val}")
                     
                 query_str = "&".join(query_parts)
-                url = f"https://bacakomik.my/daftar-komik/page/{page}/"
+                url = f"{get_scraper_domain()}/daftar-komik/page/{page}/"
                 if query_str:
                     url += f"?{query_str}"
                     
@@ -372,7 +502,7 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
                 return
                 
             try:
-                reader_url = f"https://bacakomik.my/{manga_id}-chapter-{chapter_num}/"
+                reader_url = f"{get_scraper_domain()}/{manga_id}-chapter-{chapter_num}/"
                 content = fetch_html(reader_url)
                 
                 # Extract image list inside anjay_ini_id_kh block
@@ -459,7 +589,7 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
                     img_url,
                     headers={
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-                        'Referer': 'https://bacakomik.my/'
+                        'Referer': get_scraper_domain()
                     }
                 )
                 with urllib.request.urlopen(req, context=ctx, timeout=10) as response:
@@ -483,11 +613,192 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
         else:
             super().do_GET()
 
+    def do_POST(self):
+        # API: Add Comment
+        if self.path == '/api/comments':
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                post_data = self.rfile.read(content_length).decode('utf-8')
+                data = json.loads(post_data)
+                
+                manga_id = data.get('manga_id')
+                manga_title = data.get('manga_title')
+                chapter_id = data.get('chapter_id')
+                username = data.get('username')
+                email = data.get('email')
+                content = data.get('content')
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                
+                if not all([manga_id, manga_title, username, email, content]):
+                    self.wfile.write(json.dumps({"status": "error", "message": "Missing required fields"}).encode('utf-8'))
+                    return
+                    
+                comment_id = db_helper.add_comment(manga_id, manga_title, chapter_id, username, email, content)
+                self.wfile.write(json.dumps({"status": "success", "comment_id": comment_id}).encode('utf-8'))
+            except Exception as e:
+                print("Error adding comment:", e)
+                self.send_response(500)
+                self.end_headers()
+            return
+
+        # API: Mark Notification as Read
+        elif self.path == '/api/notifications/read':
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                post_data = self.rfile.read(content_length).decode('utf-8')
+                data = json.loads(post_data)
+                
+                notification_id = data.get('id')
+                target_user = data.get('email')
+                role = data.get('role')
+                
+                if role == 'admin':
+                    target_user = 'admin'
+                
+                db_helper.mark_notification_as_read(notification_id, target_user)
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "success"}).encode('utf-8'))
+            except Exception as e:
+                print("Error reading notification:", e)
+                self.send_response(500)
+                self.end_headers()
+            return
+
+        # API: Save website config
+        elif self.path == '/api/config':
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                post_data = self.rfile.read(content_length).decode('utf-8')
+                new_config = json.loads(post_data)
+                
+                # Update global site_config
+                site_config.update(new_config)
+                
+                # Save to config.json
+                with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(site_config, f, indent=4)
+                    
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "success", "message": "Konfigurasi berhasil disimpan!"}).encode('utf-8'))
+            except Exception as e:
+                print("Error saving config:", e)
+                self.send_response(500)
+                self.end_headers()
+            return
+
+        # API: Upload Logo or Favicon
+        elif self.path == '/api/upload':
+            try:
+                file_type = self.headers.get('X-File-Type', '')
+                content_length = int(self.headers.get('Content-Length', 0))
+                
+                if file_type not in ['logo', 'favicon'] or content_length == 0:
+                    self.send_response(400)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": "Invalid request parameters"}).encode('utf-8'))
+                    return
+                
+                file_data = self.rfile.read(content_length)
+                os.makedirs("assets", exist_ok=True)
+                
+                filename = "logo_uploaded.png" if file_type == 'logo' else "favicon_uploaded.png"
+                target_path = os.path.join("assets", filename)
+                
+                with open(target_path, 'wb') as wf:
+                    wf.write(file_data)
+                
+                url_path = f"/assets/{filename}"
+                if file_type == 'logo':
+                    site_config['logo_url'] = url_path
+                else:
+                    site_config['favicon_url'] = url_path
+                    
+                with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(site_config, f, indent=4)
+                    
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                
+                self.wfile.write(json.dumps({
+                    "status": "success",
+                    "url": url_path,
+                    "message": f"File {file_type} berhasil diunggah!"
+                }).encode('utf-8'))
+                
+            except Exception as e:
+                print("Error uploading file:", e)
+                self.send_response(500)
+                self.end_headers()
+            return
+
+        # API: Generate sitemap.xml
+        elif self.path == '/api/generate-sitemap':
+            try:
+                host = self.headers.get('Host', f'localhost:{PORT}')
+                manga_slugs = []
+                try:
+                    html_content = fetch_html(get_scraper_domain())
+                    manga_slugs = re.findall(r'href="https?://[^/]+/komik/([^/]+)/"', html_content)
+                    manga_slugs = list(set(manga_slugs))[:30]
+                except Exception as se:
+                    print("Error fetching sitemap manga list:", se)
+
+                xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+                xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+                xml += f'  <url>\n    <loc>https://{host}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n'
+                xml += f'  <url>\n    <loc>https://{host}/#library</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
+                xml += f'  <url>\n    <loc>https://{host}/#manga</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
+                for slug in manga_slugs:
+                    xml += f'  <url>\n    <loc>https://{host}/#manga-{slug}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>\n'
+                xml += '</urlset>'
+
+                with open("sitemap.xml", "w", encoding="utf-8") as sf:
+                    sf.write(xml)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "success", "message": "Sitemap.xml berhasil di-generate!"}).encode('utf-8'))
+            except Exception as e:
+                print("Error generating sitemap:", e)
+                self.send_response(500)
+                self.end_headers()
+            return
+
+        # API: Clear thumbnail cache (Mock success)
+        elif self.path == '/api/clear-cache':
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "success", "message": "Cache gambar thumbnail berhasil dibersihkan!"}).encode('utf-8'))
+            return
+
+# Initialize database
+db_helper.init_db()
+
 # Avoid port in use errors on server restart
 socketserver.TCPServer.allow_reuse_address = True
 
-with socketserver.TCPServer(("", PORT), ScraperHandler) as httpd:
-    print(f"KomikID Live WordPress Scraper Server running at http://localhost:{PORT}")
+
+with socketserver.TCPServer(("0.0.0.0", PORT), ScraperHandler) as httpd:
+    print(f"Komivex Server running at http://0.0.0.0:{PORT}")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

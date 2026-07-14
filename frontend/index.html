@@ -113,6 +113,27 @@
                     </svg>
                 </button>
 
+                <!-- Notification Bell -->
+                <div class="notification-bell-container" id="notification-bell-wrapper" style="display: none;">
+                    <button class="action-circle-btn" id="notification-bell-btn" title="Notifikasi Komentar">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                        </svg>
+                        <span class="notification-badge" id="notification-unread-count" style="display: none;">0</span>
+                    </button>
+                    <!-- Notifications Dropdown -->
+                    <div class="notification-dropdown" id="notification-dropdown" style="display: none;">
+                        <div class="notification-dropdown-header">
+                            <span>Notifikasi Diskusi</span>
+                            <button id="notification-mark-all-read">Semua Dibaca</button>
+                        </div>
+                        <div class="notification-dropdown-list" id="notification-dropdown-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Login Button -->
                 <button class="login-btn" id="login-modal-btn">Masuk</button>
             </div>
@@ -424,6 +445,14 @@
                             <button class="btn-secondary" id="admin-clear-cache-btn" style="padding: 0 16px; height: 36px; border-radius: 18px; font-size: 12px;">Regenerate Thumbnails</button>
                         </div>
                     </div>
+
+                    <!-- ADMIN DISCUSSIONS & COMMENTS MONITORING -->
+                    <div class="admin-card" style="grid-column: 1 / -1; margin-top: 8px;">
+                        <h3>Aktivitas Diskusi & Komentar Baru</h3>
+                        <div class="admin-notifications-list" id="admin-notifications-list">
+                            <!-- Populated dynamically by app.js -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -448,6 +477,12 @@
                     <div class="dashboard-card">
                         <h3>Update Seri Diikuti</h3>
                         <div class="updates-list" id="dashboard-updates-list">
+                            <!-- Populated dynamically by app.js -->
+                        </div>
+                    </div>
+                    <div class="dashboard-card">
+                        <h3>Notifikasi Diskusi</h3>
+                        <div class="notifications-list" id="dashboard-notifications-list">
                             <!-- Populated dynamically by app.js -->
                         </div>
                     </div>
@@ -519,6 +554,24 @@
             <button class="page-btn" id="reader-prev-chapter-btn">Sebelumnya</button>
             <button class="page-btn btn-secondary" id="reader-bottom-back-btn">Kembali ke Detail</button>
             <button class="page-btn" id="reader-next-chapter-btn">Selanjutnya</button>
+        </div>
+
+        <!-- Comments Section -->
+        <div class="reader-comments-container">
+            <h3 class="comments-heading">💬 Diskusi & Komentar</h3>
+            <div id="reader-comments-auth-required" style="display: none;">
+                <p class="comments-auth-text">Silakan masuk ke akun Anda untuk ikut berdiskusi.</p>
+                <button class="login-btn" id="reader-comments-login-btn" style="margin: 0 auto; display: block;">Masuk / Daftar</button>
+            </div>
+            <div id="reader-comments-form-wrapper" style="display: none;">
+                <form id="reader-comment-form">
+                    <textarea class="comment-textarea" id="reader-comment-input" required placeholder="Tulis komentar atau tanggapan Anda mengenai chapter ini..."></textarea>
+                    <button type="submit" class="comment-submit-btn">Kirim Komentar</button>
+                </form>
+            </div>
+            <div class="comments-list" id="reader-comments-list">
+                <!-- Populated dynamically -->
+            </div>
         </div>
     </section>
 

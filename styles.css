@@ -2895,3 +2895,323 @@ input:checked + .slider:before {
     flex-shrink: 0;
 }
 
+/* ==========================================================================
+   COMMENTS & DISCUSSIONS SYSTEM
+   ========================================================================== */
+
+.reader-comments-container {
+    max-width: 800px;
+    margin: 40px auto 20px auto;
+    padding: 24px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.comments-heading {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 12px;
+}
+
+.comments-auth-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.comment-textarea {
+    width: 100%;
+    min-height: 100px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-primary);
+    padding: 14px;
+    font-size: 13px;
+    font-family: inherit;
+    line-height: 1.5;
+    outline: none;
+    resize: vertical;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    margin-bottom: 12px;
+}
+
+.comment-textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(225, 29, 72, 0.15);
+}
+
+.comment-submit-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    padding: 10px 24px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: block;
+    margin-left: auto;
+}
+
+.comment-submit-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3);
+}
+
+.comments-list {
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.comment-item {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.comment-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.comment-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.comment-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+}
+
+.comment-username {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.comment-chapter-label {
+    font-size: 10px;
+    background: rgba(225, 29, 72, 0.1);
+    color: var(--accent);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.comment-time {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+.comment-body {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+/* ==========================================================================
+   NOTIFICATION SYSTEM (BELL & DROPDOWN)
+   ========================================================================== */
+
+.notification-bell-container {
+    position: relative;
+    display: inline-block;
+}
+
+.notification-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    border-radius: 50%;
+    min-width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border: 2px solid var(--bg-primary);
+    box-shadow: 0 2px 8px rgba(225, 29, 72, 0.4);
+}
+
+.notification-dropdown {
+    position: absolute;
+    top: 48px;
+    right: 0;
+    width: 320px;
+    max-height: 400px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: scaleUp 0.15s ease;
+}
+
+@keyframes scaleUp {
+    from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.notification-dropdown-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.notification-dropdown-header button {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+}
+
+.notification-dropdown-header button:hover {
+    text-decoration: underline;
+}
+
+.notification-dropdown-list {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 340px;
+}
+
+.notification-item {
+    display: flex;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.notification-item:hover {
+    background: var(--bg-tertiary);
+}
+
+.notification-item.unread {
+    background: rgba(225, 29, 72, 0.04);
+}
+
+.notification-item.unread:hover {
+    background: rgba(225, 29, 72, 0.08);
+}
+
+.notification-item-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.notification-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notification-item-text {
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.notification-item-text strong {
+    color: var(--accent);
+}
+
+.notification-item-time {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+/* ==========================================================================
+   DASHBOARD & ADMIN PANEL NOTIFICATIONS LIST
+   ========================================================================== */
+
+.notifications-list,
+.admin-notifications-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.dashboard-card .notification-item,
+.admin-card .notification-item {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-tertiary);
+    margin-bottom: 0;
+    transition: all 0.2s ease;
+}
+
+.dashboard-card .notification-item:hover,
+.admin-card .notification-item:hover {
+    border-color: var(--accent);
+    transform: translateX(2px);
+}
+
+

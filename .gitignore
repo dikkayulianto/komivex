@@ -17,3 +17,5 @@ ngrok.exe
 __pycache__/
 *.pyc
 *.pyo
+*.db
+comments.db
