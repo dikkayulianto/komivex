@@ -536,6 +536,30 @@ def application(environ, start_response):
             return error_response(start_response, '500 Internal Server Error', str(e))
 
     # ──────────────────────────
+    # GET: /sitemap.xml
+    # ──────────────────────────
+    if method == 'GET' and path == '/sitemap.xml':
+        try:
+            host = environ.get('HTTP_HOST', 'komivex.my.id')
+            domain = get_scraper_domain()
+            html_content = fetch_html(domain)
+            slugs = list(set(re.findall(r'href="https?://[^/]+/komik/([^/]+)/"', html_content)))[:30]
+            xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            xml += f'  <url><loc>https://{host}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n'
+            xml += f'  <url><loc>https://{host}/#library</loc><changefreq>daily</changefreq><priority>0.8</priority></url>\n'
+            xml += f'  <url><loc>https://{host}/#manga</loc><changefreq>daily</changefreq><priority>0.8</priority></url>\n'
+            for slug in slugs:
+                xml += f'  <url><loc>https://{host}/#manga-{slug}</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>\n'
+            xml += '</urlset>'
+            start_response('200 OK', [
+                ('Content-Type', 'application/xml'),
+                ('Access-Control-Allow-Origin', '*'),
+            ])
+            return [xml.encode('utf-8')]
+        except Exception as e:
+            return error_response(start_response, '500 Internal Server Error', str(e))
+
+    # ──────────────────────────
     # POST: Generate Sitemap
     # ──────────────────────────
     if method == 'POST' and path == '/api/generate-sitemap':

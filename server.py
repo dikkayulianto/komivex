@@ -298,29 +298,24 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
-            sitemap_file = "sitemap.xml"
-            if os.path.exists(sitemap_file):
-                with open(sitemap_file, 'r', encoding='utf-8') as f:
-                    self.wfile.write(f.read().encode('utf-8'))
-            else:
-                host = self.headers.get('Host', f'localhost:{PORT}')
-                manga_slugs = []
-                try:
-                    html_content = fetch_html(get_scraper_domain())
-                    manga_slugs = re.findall(r'href="https?://[^/]+/komik/([^/]+)/"', html_content)
-                    manga_slugs = list(set(manga_slugs))[:10]
-                except Exception as se:
-                    print("Error fetching sitemap manga list:", se)
+            host = self.headers.get('Host', 'komivex.my.id')
+            manga_slugs = []
+            try:
+                html_content = fetch_html(get_scraper_domain())
+                manga_slugs = re.findall(r'href="https?://[^/]+/komik/([^/]+)/"', html_content)
+                manga_slugs = list(set(manga_slugs))[:30]
+            except Exception as se:
+                print("Error fetching sitemap manga list:", se)
 
-                xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
-                xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-                xml += f'  <url>\n    <loc>https://{host}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n'
-                xml += f'  <url>\n    <loc>https://{host}/#library</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
-                xml += f'  <url>\n    <loc>https://{host}/#manga</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
-                for slug in manga_slugs:
-                    xml += f'  <url>\n    <loc>https://{host}/#manga-{slug}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>\n'
-                xml += '</urlset>'
-                self.wfile.write(xml.encode('utf-8'))
+            xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+            xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            xml += f'  <url>\n    <loc>https://{host}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n'
+            xml += f'  <url>\n    <loc>https://{host}/#library</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
+            xml += f'  <url>\n    <loc>https://{host}/#manga</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
+            for slug in manga_slugs:
+                xml += f'  <url>\n    <loc>https://{host}/#manga-{slug}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>\n'
+            xml += '</urlset>'
+            self.wfile.write(xml.encode('utf-8'))
             return
 
         # API: Get Popular Manga (from bacakomik.my)
