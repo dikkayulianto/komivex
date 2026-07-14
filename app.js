@@ -2610,7 +2610,7 @@ function init() {
     // Parse current page path to determine active tab/flow
     const path = window.location.pathname.toLowerCase();
     
-    if (path.endsWith("manga.html")) {
+    if (path.includes("manga.html") || path.endsWith("/manga")) {
         const typeParam = getQueryParam("type");
         if (typeParam) {
             activeFilters.type = typeParam.charAt(0).toUpperCase() + typeParam.slice(1);
@@ -2640,14 +2640,14 @@ function init() {
             }
         }
         switchTab("manga");
-    } else if (path.endsWith("library.html")) {
+    } else if (path.includes("library.html") || path.endsWith("/library")) {
         switchTab("library");
         renderLibraryGrid();
-    } else if (path.endsWith("dashboard.html")) {
+    } else if (path.includes("dashboard.html") || path.endsWith("/dashboard")) {
         switchTab("user-dashboard");
-    } else if (path.endsWith("admin.html")) {
+    } else if (path.includes("admin.html") || path.endsWith("/admin")) {
         switchTab("admin");
-    } else if (path.endsWith("read.html")) {
+    } else if (path.includes("read.html") || path.endsWith("/read")) {
         const mangaId = getQueryParam("manga");
         const chapter = getQueryParam("chapter");
         if (mangaId && chapter) {
