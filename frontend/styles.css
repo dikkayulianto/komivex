@@ -1134,6 +1134,16 @@ body.light-theme .manga-card:hover {
     border-radius: 12px;
 }
 
+.genre-tag.clickable {
+    transition: all 0.2s ease;
+}
+
+.genre-tag.clickable:hover {
+    background-color: var(--accent-color);
+    color: #fff;
+    border-color: var(--accent-color);
+}
+
 .detail-synopsis-section {
     margin-bottom: 24px;
 }

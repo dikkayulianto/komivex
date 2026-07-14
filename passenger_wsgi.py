@@ -155,7 +155,9 @@ def scrape_details(slug):
         type_match = re.search(r'Type.*?<a[^>]+>([^<]+)</a>', content, re.DOTALL)
         genre_matches = re.findall(r'class="genre-item"[^>]*>.*?<a[^>]+>([^<]+)</a>', content, re.DOTALL)
         if not genre_matches:
-            genre_matches = re.findall(r'href="https?://[^/]+/genres/[^"]+">([^<]+)</a>', content)
+            genre_links = re.findall(r'href="(?:https?://[^/]+)?/genres/([^/"]+)/?"[^>]*>([^<]+)</a>', content)
+            if genre_links:
+                genre_matches = [name.strip() for slug, name in genre_links if name.strip()]
 
         status_match = re.search(r'Status.*?<span[^>]*>([^<]+)</span>', content, re.DOTALL)
 
@@ -423,13 +425,17 @@ def application(environ, start_response):
             query_parts = []
             if manga_type and manga_type != 'all':
                 query_parts.append(f"type={manga_type.lower()}")
-            if genre and genre != 'all':
-                query_parts.append(f"genres[]={genre.lower()}")
             if sort:
                 sort_map = {'rating': 'popular', 'popular': 'popular', 'alphabet': 'title'}
                 query_parts.append(f"order={sort_map.get(sort, 'update')}")
             qs = "&".join(query_parts)
-            url = f"{domain}/daftar-komik/page/{page}/"
+            
+            # Use path-based routing for genre filter on bacakomik.my
+            if genre and genre != 'all':
+                url = f"{domain}/genres/{genre.lower()}/page/{page}/"
+            else:
+                url = f"{domain}/daftar-komik/page/{page}/"
+                
             if qs:
                 url += f"?{qs}"
             content = fetch_html(url)

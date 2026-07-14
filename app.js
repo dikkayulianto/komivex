@@ -854,8 +854,13 @@ function renderModalData(manga) {
     if (manga.genres) {
         manga.genres.forEach(genre => {
             const tag = document.createElement("span");
-            tag.className = "genre-tag";
+            tag.className = "genre-tag clickable";
+            tag.style.cursor = "pointer";
             tag.textContent = genre;
+            tag.addEventListener("click", () => {
+                closeMangaDetail();
+                window.location.href = `manga.html?genre=${encodeURIComponent(genre.toLowerCase())}`;
+            });
             genresContainer.appendChild(tag);
         });
     }

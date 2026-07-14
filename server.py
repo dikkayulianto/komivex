@@ -180,6 +180,10 @@ def scrape_details(slug):
             if genre_info_match:
                 genres = re.findall(r'<a[^>]*>([^<]+)</a>', genre_info_match.group(1))
             if not genres:
+                genre_links = re.findall(r'href="(?:https?://[^/]+)?/genres/([^/"]+)/?"[^>]*>([^<]+)</a>', content)
+                if genre_links:
+                    genres = [name.strip() for slug, name in genre_links if name.strip()]
+            if not genres:
                 genres = ["Action"]
                 
             # Type
@@ -418,8 +422,6 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
                     # Map styles tags
                     m_type = manga_type.lower()
                     query_parts.append(f"type={m_type}")
-                if genre and genre != 'all':
-                    query_parts.append(f"genres[]={genre.lower()}")
                 if sort:
                     sort_val = 'update'
                     if sort == 'rating' or sort == 'popular':
@@ -429,7 +431,13 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
                     query_parts.append(f"order={sort_val}")
                     
                 query_str = "&".join(query_parts)
-                url = f"{get_scraper_domain()}/daftar-komik/page/{page}/"
+                
+                # Use path-based routing for genre filter on bacakomik.my
+                if genre and genre != 'all':
+                    url = f"{get_scraper_domain()}/genres/{genre.lower()}/page/{page}/"
+                else:
+                    url = f"{get_scraper_domain()}/daftar-komik/page/{page}/"
+                    
                 if query_str:
                     url += f"?{query_str}"
                     
