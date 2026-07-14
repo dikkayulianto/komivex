@@ -2290,8 +2290,81 @@ function updateAdContent(zoneId, adHtml, defaultHtml) {
     if (!zone) return;
 
     if (adHtml && adHtml.trim() !== "") {
-        zone.innerHTML = adHtml;
-        executeScripts(zone);
+        // Clear previous content
+        zone.innerHTML = "";
+        
+        // Create an iframe to sandbox the ad script
+        const iframe = document.createElement("iframe");
+        iframe.style.width = "100%";
+        iframe.style.height = "150px"; // Default height, will be auto-adjusted
+        iframe.style.border = "none";
+        iframe.style.overflow = "hidden";
+        iframe.style.background = "transparent";
+        iframe.setAttribute("scrolling", "no");
+        
+        zone.appendChild(iframe);
+        
+        try {
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        html, body {
+                            margin: 0;
+                            padding: 0;
+                            background: transparent;
+                            overflow: hidden;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            width: 100%;
+                            height: 100%;
+                        }
+                        /* Ensure loaded iframes or images fit properly */
+                        img, iframe {
+                            max-width: 100%;
+                            height: auto;
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${adHtml}
+                    <script>
+                        // Auto-adjust iframe height to content height using ResizeObserver
+                        window.onload = function() {
+                            function adjustHeight() {
+                                try {
+                                    var newHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+                                    if (newHeight > 0) {
+                                        window.frameElement.style.height = newHeight + "px";
+                                    }
+                                } catch(e) {}
+                            }
+                            
+                            // Adjust height initially
+                            setTimeout(adjustHeight, 200);
+                            setTimeout(adjustHeight, 1000); // safety fallback for slow loaders
+                            
+                            // Setup observer for dynamic height changes (e.g. ad injections)
+                            if (window.ResizeObserver) {
+                                var observer = new ResizeObserver(adjustHeight);
+                                observer.observe(document.documentElement);
+                            }
+                        };
+                    </script>
+                </body>
+                </html>
+            `);
+            doc.close();
+        } catch (e) {
+            console.error("Error loading ad in sandbox iframe, falling back:", e);
+            zone.innerHTML = adHtml;
+            executeScripts(zone);
+        }
     } else {
         zone.innerHTML = defaultHtml;
     }
