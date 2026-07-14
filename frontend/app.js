@@ -1500,6 +1500,14 @@ function setupEventListeners() {
     if (viewAllUpdatesBtn) {
         viewAllUpdatesBtn.addEventListener("click", (e) => {
             e.preventDefault();
+            // Set active filter to 'update'
+            activeFilters.sort = "update";
+            const sortContainer = document.getElementById("filter-sort");
+            if (sortContainer) {
+                sortContainer.querySelectorAll(".filter-opt").forEach(b => b.classList.remove("active"));
+                const updateBtn = sortContainer.querySelector('.filter-opt[data-value="update"]');
+                if (updateBtn) updateBtn.classList.add("active");
+            }
             switchTab("manga");
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
