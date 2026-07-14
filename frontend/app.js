@@ -1017,7 +1017,22 @@ let currentMangaIdForReader = null;
 let currentChapterNumberForReader = null;
 let currentMangaTitleForReader = null;
 
+function getQueryParam(name) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(name);
+}
+
 async function openChapterReader(mangaId, chapterNumber) {
+    const path = window.location.pathname.toLowerCase();
+    const targetUrl = `read.html?manga=${encodeURIComponent(mangaId)}&chapter=${encodeURIComponent(chapterNumber)}`;
+    
+    if (path.endsWith("read.html") && getQueryParam("manga") === mangaId && getQueryParam("chapter") == chapterNumber) {
+        // Proceed with loading
+    } else {
+        window.location.href = targetUrl;
+        return;
+    }
+
     currentMangaIdForReader = mangaId;
     currentChapterNumberForReader = parseInt(chapterNumber);
     
@@ -1186,27 +1201,10 @@ async function openChapterReader(mangaId, chapterNumber) {
 }
 
 const goBackFromReader = () => {
-    // Show main layout wrapper
-    const mainLayout = document.querySelector(".main-layout-wrapper");
-    if (mainLayout) mainLayout.style.display = "flex";
-    
-    // Show footer and mobile bottom nav on normal tabs
-    const footer = document.querySelector(".footer");
-    if (footer) footer.style.display = "";
-    const mobileNav = document.getElementById("mobile-bottom-nav");
-    if (mobileNav) mobileNav.style.display = "";
-
-    // Switch back to details view or home
     if (currentMangaIdForReader) {
-        // Switch tab to home/manga (depending on where they were, or default manga tab)
-        currentTab = "manga";
-        document.querySelectorAll(".tab-content").forEach(content => {
-            content.classList.remove("active");
-        });
-        document.getElementById("manga-view").classList.add("active");
-        openMangaDetail(currentMangaIdForReader);
+        window.location.href = "index.html?manga=" + currentMangaIdForReader;
     } else {
-        switchTab("home");
+        window.location.href = "index.html";
     }
 };
 
@@ -1520,24 +1518,14 @@ function setupEventListeners() {
     });
 
     togglePopularBtn.addEventListener("click", () => {
-        switchTab("manga");
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.location.href = "manga.html";
     });
 
     const viewAllUpdatesBtn = document.getElementById("view-all-updates");
     if (viewAllUpdatesBtn) {
         viewAllUpdatesBtn.addEventListener("click", (e) => {
             e.preventDefault();
-            // Set active filter to 'update'
-            activeFilters.sort = "update";
-            const sortContainer = document.getElementById("filter-sort");
-            if (sortContainer) {
-                sortContainer.querySelectorAll(".filter-opt").forEach(b => b.classList.remove("active"));
-                const updateBtn = sortContainer.querySelector('.filter-opt[data-value="update"]');
-                if (updateBtn) updateBtn.classList.add("active");
-            }
-            switchTab("manga");
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            window.location.href = "manga.html?sort=update";
         });
     }
 
@@ -1556,7 +1544,11 @@ function setupEventListeners() {
     document.querySelectorAll(".nav-menu .nav-item").forEach(btn => {
         btn.addEventListener("click", () => {
             const tab = btn.getAttribute("data-tab");
-            switchTab(tab);
+            if (tab === "home") window.location.href = "index.html";
+            else if (tab === "manga") window.location.href = "manga.html";
+            else if (tab === "library") window.location.href = "library.html";
+            else if (tab === "user-dashboard") window.location.href = "dashboard.html";
+            else if (tab === "admin") window.location.href = "admin.html";
         });
     });
 
@@ -1565,8 +1557,11 @@ function setupEventListeners() {
         link.addEventListener("click", (e) => {
             e.preventDefault();
             const tab = link.getAttribute("data-tab");
-            switchTab(tab);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (tab === "home") window.location.href = "index.html";
+            else if (tab === "manga") window.location.href = "manga.html";
+            else if (tab === "library") window.location.href = "library.html";
+            else if (tab === "user-dashboard") window.location.href = "dashboard.html";
+            else if (tab === "admin") window.location.href = "admin.html";
         });
     });
 
@@ -1574,33 +1569,27 @@ function setupEventListeners() {
         link.addEventListener("click", (e) => {
             e.preventDefault();
             const type = link.getAttribute("data-type");
-            activeFilters.type = type;
-            updateFilterActiveUI("type", type);
-            switchTab("home");
-            renderPopularGrid();
-            popularGrid.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            showToast(`Filter tipe: ${type} aktif`, "info");
+            window.location.href = `manga.html?type=${type.toLowerCase()}`;
         });
     });
 
     const libBackHome = document.getElementById("library-back-home");
     if (libBackHome) {
         libBackHome.addEventListener("click", () => {
-            switchTab("home");
+            window.location.href = "index.html";
         });
     }
 
     const otherTabBack = document.getElementById("other-tab-back");
     if (otherTabBack) {
         otherTabBack.addEventListener("click", () => {
-            switchTab("home");
+            window.location.href = "index.html";
         });
     }
 
     document.getElementById("logo-btn").addEventListener("click", (e) => {
         e.preventDefault();
-        switchTab("home");
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.location.href = "index.html";
     });
 
     // Filters action wiring
@@ -2592,9 +2581,62 @@ function init() {
     updateAuthUI();
     loadAndApplySiteConfig();
     applyAllAdCodes();
-    renderPopularGrid();
-    renderUpdatesGrid();
-    renderLibraryGrid();
+
+    // Parse current page path to determine active tab/flow
+    const path = window.location.pathname.toLowerCase();
+    
+    if (path.endsWith("manga.html")) {
+        const typeParam = getQueryParam("type");
+        if (typeParam) {
+            activeFilters.type = typeParam.charAt(0).toUpperCase() + typeParam.slice(1);
+            const typeContainer = document.getElementById("filter-type");
+            if (typeContainer) {
+                typeContainer.querySelectorAll(".filter-opt").forEach(b => b.classList.remove("active"));
+                const targetBtn = typeContainer.querySelector(`.filter-opt[data-value="${activeFilters.type}"]`);
+                if (targetBtn) targetBtn.classList.add("active");
+            }
+        }
+        const sortParam = getQueryParam("sort");
+        if (sortParam) {
+            activeFilters.sort = sortParam;
+            const sortContainer = document.getElementById("filter-sort");
+            if (sortContainer) {
+                sortContainer.querySelectorAll(".filter-opt").forEach(b => b.classList.remove("active"));
+                const targetBtn = sortContainer.querySelector(`.filter-opt[data-value="${sortParam}"]`);
+                if (targetBtn) targetBtn.classList.add("active");
+            }
+        }
+        switchTab("manga");
+    } else if (path.endsWith("library.html")) {
+        switchTab("library");
+        renderLibraryGrid();
+    } else if (path.endsWith("dashboard.html")) {
+        switchTab("user-dashboard");
+    } else if (path.endsWith("admin.html")) {
+        switchTab("admin");
+    } else if (path.endsWith("read.html")) {
+        const mangaId = getQueryParam("manga");
+        const chapter = getQueryParam("chapter");
+        if (mangaId && chapter) {
+            openChapterReader(mangaId, chapter);
+        } else {
+            window.location.href = "index.html";
+        }
+    } else {
+        // index.html or /
+        switchTab("home");
+        renderPopularGrid();
+        renderUpdatesGrid();
+    }
+
+    // Check if we need to open a manga detail modal automatically
+    const mangaIdParam = getQueryParam("manga");
+    if (mangaIdParam && !path.endsWith("read.html")) {
+        setTimeout(() => {
+            openMangaDetail(mangaIdParam);
+        }, 300);
+    }
+
     setupEventListeners();
     startAutoUpdate();
 }
@@ -2611,10 +2653,11 @@ document.addEventListener("DOMContentLoaded", init);
     mobileNavItems.forEach(btn => {
         btn.addEventListener("click", () => {
             const tab = btn.getAttribute("data-tab");
-            switchTab(tab);
-            // Update active state on mobile nav
-            mobileNavItems.forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
+            if (tab === "home") window.location.href = "index.html";
+            else if (tab === "manga") window.location.href = "manga.html";
+            else if (tab === "library") window.location.href = "library.html";
+            else if (tab === "user-dashboard") window.location.href = "dashboard.html";
+            else if (tab === "admin") window.location.href = "admin.html";
         });
     });
 
