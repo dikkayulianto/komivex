@@ -2582,6 +2582,31 @@ function init() {
     loadAndApplySiteConfig();
     applyAllAdCodes();
 
+    // Dynamically render comprehensive genres list
+    const genresList = [
+        "Semua", "Action", "Adventure", "Comedy", "Drama", "Fantasy", 
+        "Harem", "Historical", "Isekai", "Magic", "Martial Arts", 
+        "Mystery", "Psychological", "Romance", "Sci-Fi", "Seinen", 
+        "Shoujo", "Shounen", "Slice of Life", "Sports", "Supernatural", 
+        "Thriller", "Tragedy"
+    ];
+    const genreContainer = document.getElementById("filter-genre");
+    if (genreContainer) {
+        genreContainer.innerHTML = "";
+        genresList.forEach(genre => {
+            const btn = document.createElement("button");
+            btn.className = "filter-opt";
+            if (genre === "Semua") {
+                btn.classList.add("active");
+                btn.setAttribute("data-value", "all");
+            } else {
+                btn.setAttribute("data-value", genre);
+            }
+            btn.textContent = genre;
+            genreContainer.appendChild(btn);
+        });
+    }
+
     // Parse current page path to determine active tab/flow
     const path = window.location.pathname.toLowerCase();
     
@@ -2594,6 +2619,14 @@ function init() {
                 typeContainer.querySelectorAll(".filter-opt").forEach(b => b.classList.remove("active"));
                 const targetBtn = typeContainer.querySelector(`.filter-opt[data-value="${activeFilters.type}"]`);
                 if (targetBtn) targetBtn.classList.add("active");
+            }
+        }
+        const genreParam = getQueryParam("genre");
+        if (genreParam) {
+            const matchedGenre = genresList.find(g => g.toLowerCase() === genreParam.toLowerCase());
+            if (matchedGenre) {
+                activeFilters.genre = matchedGenre === "Semua" ? "all" : matchedGenre;
+                updateFilterActiveUI("genre", activeFilters.genre);
             }
         }
         const sortParam = getQueryParam("sort");
