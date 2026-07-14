@@ -424,7 +424,7 @@ def application(environ, start_response):
             if manga_type and manga_type != 'all':
                 query_parts.append(f"type={manga_type.lower()}")
             if genre and genre != 'all':
-                query_parts.append(f"genre={genre.lower()}")
+                query_parts.append(f"genres[]={genre.lower()}")
             if sort:
                 sort_map = {'rating': 'popular', 'popular': 'popular', 'alphabet': 'title'}
                 query_parts.append(f"order={sort_map.get(sort, 'update')}")

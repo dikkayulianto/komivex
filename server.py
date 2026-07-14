@@ -419,7 +419,7 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
                     m_type = manga_type.lower()
                     query_parts.append(f"type={m_type}")
                 if genre and genre != 'all':
-                    query_parts.append(f"genre={genre.lower()}")
+                    query_parts.append(f"genres[]={genre.lower()}")
                 if sort:
                     sort_val = 'update'
                     if sort == 'rating' or sort == 'popular':
