@@ -1323,6 +1323,7 @@ function switchTab(tabName) {
         const inputSidebar1 = document.getElementById("ad-code-sidebar-1");
         const inputSidebar2 = document.getElementById("ad-code-sidebar-2");
         const inputFooter = document.getElementById("ad-code-footer");
+        const inputHistats = document.getElementById("ad-code-histats");
         
         if (inputHead) inputHead.value = customAdCodes.head || "";
         if (inputBody) inputBody.value = customAdCodes.body || "";
@@ -1330,6 +1331,7 @@ function switchTab(tabName) {
         if (inputSidebar1) inputSidebar1.value = customAdCodes.sidebar_1 || "";
         if (inputSidebar2) inputSidebar2.value = customAdCodes.sidebar_2 || "";
         if (inputFooter) inputFooter.value = customAdCodes.footer || "";
+        if (inputHistats) inputHistats.value = customAdCodes.histats || "";
 
         document.getElementById("admin-view").classList.add("active");
         showToast("Membuka Admin Panel", "info");
@@ -1798,6 +1800,7 @@ function setupEventListeners() {
             const sidebar1Code = document.getElementById("ad-code-sidebar-1").value;
             const sidebar2Code = document.getElementById("ad-code-sidebar-2").value;
             const footerCode = document.getElementById("ad-code-footer").value;
+            const histatsCode = document.getElementById("ad-code-histats") ? document.getElementById("ad-code-histats").value : "";
 
             customAdCodes = {
                 head: headCode,
@@ -1805,7 +1808,8 @@ function setupEventListeners() {
                 header: headerCode,
                 sidebar_1: sidebar1Code,
                 sidebar_2: sidebar2Code,
-                footer: footerCode
+                footer: footerCode,
+                histats: histatsCode
             };
 
             localStorage.setItem("komivex_ad_codes", JSON.stringify(customAdCodes));
@@ -2395,6 +2399,7 @@ function applyAllAdCodes() {
     updateAdContent("sidebar-ads-zone", customAdCodes.sidebar_1, defaultAdContents.sidebar_1);
     updateAdContent("sidebar-ads-zone-2", customAdCodes.sidebar_2, defaultAdContents.sidebar_2);
     updateAdContent("footer-ads-zone", customAdCodes.footer, defaultAdContents.footer);
+    applyHistatsWidget();
 }
 
 let siteConfig = {};
@@ -2528,6 +2533,7 @@ async function loadAndApplySiteConfig() {
             const inputSidebar1 = document.getElementById("ad-code-sidebar-1");
             const inputSidebar2 = document.getElementById("ad-code-sidebar-2");
             const inputFooter = document.getElementById("ad-code-footer");
+            const inputHistats = document.getElementById("ad-code-histats");
             
             if (inputHeadCode) inputHeadCode.value = customAdCodes.head || "";
             if (inputBodyCode) inputBodyCode.value = customAdCodes.body || "";
@@ -2535,6 +2541,7 @@ async function loadAndApplySiteConfig() {
             if (inputSidebar1) inputSidebar1.value = customAdCodes.sidebar_1 || "";
             if (inputSidebar2) inputSidebar2.value = customAdCodes.sidebar_2 || "";
             if (inputFooter) inputFooter.value = customAdCodes.footer || "";
+            if (inputHistats) inputHistats.value = customAdCodes.histats || "";
             
             // Inject custom head scripts dynamically to document head
             if (customAdCodes.head && customAdCodes.head.trim() !== "") {
@@ -2586,6 +2593,7 @@ function init() {
     updateAuthUI();
     loadAndApplySiteConfig();
     applyAllAdCodes();
+    renderSidebarWidgets();
 
     // Dynamically render comprehensive genres list
     const genresList = [
@@ -3007,5 +3015,119 @@ function stopNotificationsPolling() {
     if (notificationsPollInterval) {
         clearInterval(notificationsPollInterval);
         notificationsPollInterval = null;
+    }
+}
+
+function applyHistatsWidget() {
+    const customWidgetContainer = document.getElementById("sidebar-custom-widget-container");
+    const customWidgetZone = document.getElementById("sidebar-custom-widget-zone");
+    if (!customWidgetContainer || !customWidgetZone) return;
+    
+    const code = customAdCodes.histats;
+    if (code && code.trim() !== "") {
+        customWidgetContainer.style.display = "block";
+        customWidgetZone.innerHTML = "";
+        
+        const helper = document.createElement("div");
+        helper.innerHTML = code;
+        
+        Array.from(helper.querySelectorAll("script")).forEach(oldScript => {
+            const newScript = document.createElement("script");
+            Array.from(oldScript.attributes).forEach(attr => {
+                newScript.setAttribute(attr.name, attr.value);
+            });
+            if (oldScript.src) {
+                newScript.src = oldScript.src;
+            } else {
+                newScript.textContent = oldScript.textContent;
+            }
+            oldScript.parentNode.replaceChild(newScript, oldScript);
+        });
+        
+        while (helper.firstChild) {
+            customWidgetZone.appendChild(helper.firstChild);
+        }
+    } else {
+        customWidgetContainer.style.display = "none";
+        customWidgetZone.innerHTML = "";
+    }
+}
+
+async function renderSidebarWidgets() {
+    const popularContainer = document.getElementById("sidebar-popular-list");
+    const updatesContainer = document.getElementById("sidebar-updates-list");
+    
+    if (!popularContainer && !updatesContainer) return;
+    
+    if (popularContainer) {
+        try {
+            const res = await fetch("/api/popular");
+            if (res.ok) {
+                const popularList = await res.json();
+                popularContainer.innerHTML = "";
+                popularList.slice(0, 5).forEach((manga, index) => {
+                    const item = document.createElement("div");
+                    item.className = "sidebar-item";
+                    item.addEventListener("click", () => {
+                        window.location.href = `manga.html?manga=${encodeURIComponent(manga.id)}`;
+                    });
+                    
+                    const ratingVal = (parseFloat(manga.rating) || 0).toFixed(1);
+                    const rankNum = index + 1;
+                    
+                    item.innerHTML = `
+                        <div class="sidebar-item-rank rank-${rankNum}">${rankNum}</div>
+                        <img src="${manga.cover}" alt="${manga.title}" class="sidebar-item-thumb" onerror="this.src='/assets/manga_cover_1.jpg'">
+                        <div class="sidebar-item-details">
+                            <div class="sidebar-item-title">${manga.title}</div>
+                            <div class="sidebar-item-meta">
+                                <span class="sidebar-item-type ${manga.type.toLowerCase()}">${manga.type}</span>
+                                <span class="sidebar-item-rating">⭐ ${ratingVal}</span>
+                            </div>
+                        </div>
+                    `;
+                    popularContainer.appendChild(item);
+                });
+            } else {
+                popularContainer.innerHTML = "<p class='widget-error'>Gagal memuat data.</p>";
+            }
+        } catch (err) {
+            console.error("Gagal memuat sidebar popular:", err);
+            popularContainer.innerHTML = "<p class='widget-error'>Gagal memuat data.</p>";
+        }
+    }
+    
+    if (updatesContainer) {
+        try {
+            const res = await fetch("/api/updates");
+            if (res.ok) {
+                const updatesList = await res.json();
+                updatesContainer.innerHTML = "";
+                updatesList.slice(0, 5).forEach(manga => {
+                    const item = document.createElement("div");
+                    item.className = "sidebar-item";
+                    item.addEventListener("click", () => {
+                        window.location.href = `read.html?manga=${encodeURIComponent(manga.id)}&chapter=${manga.latestChapter}`;
+                    });
+                    
+                    item.innerHTML = `
+                        <img src="${manga.cover}" alt="${manga.title}" class="sidebar-item-thumb" onerror="this.src='/assets/manga_cover_1.jpg'">
+                        <div class="sidebar-item-details">
+                            <div class="sidebar-item-title">${manga.title}</div>
+                            <div class="sidebar-item-meta">
+                                <span class="sidebar-item-chapter">Ch. ${manga.latestChapter}</span>
+                                <span class="sidebar-item-time">${manga.time || 'Baru'}</span>
+                            </div>
+                        </div>
+                    `;
+                    updatesContainer.appendChild(item);
+                });
+            } else {
+                updatesContainer.innerHTML = "<p class='widget-error'>Gagal memuat data.</p>";
+            }
+        } catch (err) {
+            console.error("Gagal memuat sidebar updates:", err);
+            updatesContainer.innerHTML = "<p class='widget-error'>Gagal memuat data.</p>";
+        }
     }
 }

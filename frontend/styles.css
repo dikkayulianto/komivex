@@ -3225,4 +3225,132 @@ input:checked + .slider:before {
     transform: translateX(2px);
 }
 
+/* Sidebar Widgets styles */
+.sidebar-widget {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.sidebar-widget .widget-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--accent-color);
+    display: inline-block;
+}
+
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.2s ease;
+}
+
+.sidebar-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.sidebar-item:first-child {
+    padding-top: 0;
+}
+
+.sidebar-item-rank {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    width: 20px;
+    text-align: center;
+}
+
+.sidebar-item-rank.rank-1 { color: #ffd700; }
+.sidebar-item-rank.rank-2 { color: #c0c0c0; }
+.sidebar-item-rank.rank-3 { color: #cd7f32; }
+
+.sidebar-item-thumb {
+    width: 42px;
+    height: 56px;
+    border-radius: 6px;
+    object-fit: cover;
+    background-color: var(--bg-tertiary);
+}
+
+.sidebar-item-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.sidebar-item-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+    transition: color 0.2s ease;
+}
+
+.sidebar-item:hover .sidebar-item-title {
+    color: var(--accent-color);
+}
+
+.sidebar-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+}
+
+.sidebar-item-type {
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 9px;
+}
+
+.sidebar-item-type.manga {
+    background-color: rgba(209, 48, 48, 0.15);
+    color: var(--tag-manga);
+}
+
+.sidebar-item-type.manhua {
+    background-color: rgba(74, 144, 226, 0.15);
+    color: var(--tag-manhua);
+}
+
+.sidebar-item-type.manhwa {
+    background-color: rgba(46, 204, 113, 0.15);
+    color: var(--tag-manhwa);
+}
+
+.sidebar-item-rating {
+    color: #f39c12;
+    font-weight: 600;
+}
+
+.sidebar-item-chapter {
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+.sidebar-item-time {
+    color: var(--text-secondary);
+}
+
+.widget-error {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 8px 0;
+}
+
 
