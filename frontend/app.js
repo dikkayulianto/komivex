@@ -867,6 +867,128 @@ function renderModalData(manga) {
 
     updateBookmarkBtnUI(manga.id, manga);
     renderChaptersList(manga);
+    renderMangaShareButtons(manga);
+}
+
+function renderMangaShareButtons(manga) {
+    const detailLeft = document.querySelector(".manga-detail-card .detail-left");
+    if (!detailLeft) return;
+
+    let shareSection = detailLeft.querySelector(".manga-share-section");
+    if (!shareSection) {
+        shareSection = document.createElement("div");
+        shareSection.className = "manga-share-section";
+        detailLeft.appendChild(shareSection);
+    }
+
+    const shareUrl = `${window.location.origin}/index.html?manga=${encodeURIComponent(manga.id)}`;
+    const shareText = `Baca komik "${manga.title}" Bahasa Indonesia gratis di Komivex!`;
+
+    shareSection.innerHTML = `
+        <span class="share-label">Bagikan:</span>
+        <div class="share-buttons">
+            <a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}" class="share-btn facebook" title="Bagikan ke Facebook" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                    <path d="M9 8H7v3h2v9h4v-9h3.6l.4-3h-4V6.5c0-.8.5-1 1-1h3V2h-4c-3.4 0-5 1.6-5 4.5V8z"/>
+                </svg>
+            </a>
+            <a href="https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}" class="share-btn twitter" title="Bagikan ke X (Twitter)" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                    <path d="M18.2 2.4h3.3L14.3 11l8.5 11.3h-6.7L10.8 15.8 4.8 22.3H1.5l7.7-8.8L1 2.4h6.9l4.7 6.3 5.6-6.3zm-1.2 17.6h1.8L7.1 4.3H5.1l11.9 15.7z"/>
+                </svg>
+            </a>
+            <a href="https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + shareUrl)}" class="share-btn whatsapp" title="Bagikan ke WhatsApp" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.864.002-2.637-1.03-5.115-2.906-6.99C16.255 1.876 13.779.845 11.14.845 5.702.845 1.277 5.27 1.273 10.711c-.001 1.64.499 3.242 1.448 4.849l-.995 3.637 3.73-.978zm11.567-7.282c-.313-.156-1.854-.915-2.141-1.018-.287-.104-.497-.156-.707.156-.21.312-.813 1.018-.996 1.225-.183.208-.365.234-.678.078-.313-.156-1.32-.486-2.514-1.55-1.127-1.004-1.89-2.247-2.112-2.628-.222-.381-.024-.588.132-.743.14-.14.313-.365.47-.547.156-.182.21-.312.313-.52.103-.208.052-.39-.026-.547-.078-.156-.707-1.702-.97-2.327-.255-.612-.516-.529-.707-.529-.183-.004-.39-.004-.597-.004-.207 0-.547.078-.833.39-.286.312-1.094 1.067-1.094 2.602 0 1.535 1.118 3.018 1.273 3.226.156.208 2.198 3.357 5.327 4.704.744.32 1.324.512 1.777.656.748.238 1.43.205 1.968.125.6-.09 1.854-.758 2.114-1.488.26-.73.26-1.353.183-1.488-.078-.135-.287-.217-.6-.373z"/>
+                </svg>
+            </a>
+            <a href="https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}" class="share-btn telegram" title="Bagikan ke Telegram" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-1-1-.35-1.55.22-2.14.15-.15 2.7-2.48 2.75-2.7.01-.03.01-.15-.06-.21-.07-.06-.17-.04-.25-.02-.11.02-1.91 1.21-5.4 3.56-.51.35-.97.52-1.38.51-.45-.01-1.32-.26-1.97-.47-.79-.26-1.42-.4-1.36-.85.03-.24.36-.48.97-.73 3.78-1.64 6.3-2.73 7.56-3.26 3.6-1.52 4.35-1.78 4.84-1.79.11 0 .35.03.5.15.13.12.17.28.19.39.02.09.02.26.01.37z"/>
+                </svg>
+            </a>
+            <button class="share-btn copy-link" title="Salin Link" id="manga-share-copy-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+            </button>
+        </div>
+    `;
+
+    const copyBtn = shareSection.querySelector("#manga-share-copy-btn");
+    if (copyBtn) {
+        copyBtn.onclick = (e) => {
+            e.preventDefault();
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                showToast("Link manga berhasil disalin!", "success");
+            }).catch(err => {
+                console.error("Gagal menyalin link:", err);
+            });
+        };
+    }
+}
+
+function renderReaderShareButtons(mangaId, chapterNumber) {
+    const readerNav = document.querySelector(".reader-navigation");
+    if (!readerNav) return;
+
+    let readerShareContainer = document.querySelector(".reader-share-container");
+    if (!readerShareContainer) {
+        readerShareContainer = document.createElement("div");
+        readerShareContainer.className = "reader-share-container";
+        readerNav.parentNode.insertBefore(readerShareContainer, readerNav.nextSibling);
+    }
+
+    const chapShareUrl = `${window.location.origin}/read.html?manga=${encodeURIComponent(mangaId)}&chapter=${encodeURIComponent(chapterNumber)}`;
+    const chapShareText = `Baca komik "${currentMangaTitleForReader || mangaId}" Chapter ${chapterNumber} Bahasa Indonesia gratis di Komivex!`;
+
+    readerShareContainer.innerHTML = `
+        <span class="reader-share-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <circle cx="18" cy="5" r="3"/>
+                <circle cx="6" cy="12" r="3"/>
+                <circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            Bagikan Chapter Ini:
+        </span>
+        <div class="reader-share-row">
+            <a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(chapShareUrl)}" class="reader-share-btn facebook" target="_blank" title="Facebook">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M9 8H7v3h2v9h4v-9h3.6l.4-3h-4V6.5c0-.8.5-1 1-1h3V2h-4c-3.4 0-5 1.6-5 4.5V8z"/></svg>
+                <span>Facebook</span>
+            </a>
+            <a href="https://twitter.com/intent/tweet?url=${encodeURIComponent(chapShareUrl)}&text=${encodeURIComponent(chapShareText)}" class="reader-share-btn twitter" target="_blank" title="X (Twitter)">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M18.2 2.4h3.3L14.3 11l8.5 11.3h-6.7L10.8 15.8 4.8 22.3H1.5l7.7-8.8L1 2.4h6.9l4.7 6.3 5.6-6.3zm-1.2 17.6h1.8L7.1 4.3H5.1l11.9 15.7z"/></svg>
+                <span>X</span>
+            </a>
+            <a href="https://api.whatsapp.com/send?text=${encodeURIComponent(chapShareText + ' ' + chapShareUrl)}" class="reader-share-btn whatsapp" target="_blank" title="WhatsApp">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.864.002-2.637-1.03-5.115-2.906-6.99C16.255 1.876 13.779.845 11.14.845 5.702.845 1.277 5.27 1.273 10.711c-.001 1.64.499 3.242 1.448 4.849l-.995 3.637 3.73-.978zm11.567-7.282c-.313-.156-1.854-.915-2.141-1.018-.287-.104-.497-.156-.707.156-.21.312-.813 1.018-.996 1.225-.183.208-.365.234-.678.078-.313-.156-1.32-.486-2.514-1.55-1.127-1.004-1.89-2.247-2.112-2.628-.222-.381-.024-.588.132-.743.14-.14.313-.365.47-.547.156-.182.21-.312.313-.52.103-.208.052-.39-.026-.547-.078-.156-.707-1.702-.97-2.327-.255-.612-.516-.529-.707-.529-.183-.004-.39-.004-.597-.004-.207 0-.547.078-.833.39-.286.312-1.094 1.067-1.094 2.602 0 1.535 1.118 3.018 1.273 3.226.156.208 2.198 3.357 5.327 4.704.744.32 1.324.512 1.777.656.748.238 1.43.205 1.968.125.6-.09 1.854-.758 2.114-1.488.26-.73.26-1.353.183-1.488-.078-.135-.287-.217-.6-.373z"/></svg>
+                <span>WhatsApp</span>
+            </a>
+            <a href="https://t.me/share/url?url=${encodeURIComponent(chapShareUrl)}&text=${encodeURIComponent(chapShareText)}" class="reader-share-btn telegram" target="_blank" title="Telegram">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-1-1-.35-1.55.22-2.14.15-.15 2.7-2.48 2.75-2.7.01-.03.01-.15-.06-.21-.07-.06-.17-.04-.25-.02-.11.02-1.91 1.21-5.4 3.56-.51.35-.97.52-1.38.51-.45-.01-1.32-.26-1.97-.47-.79-.26-1.42-.4-1.36-.85.03-.24.36-.48.97-.73 3.78-1.64 6.3-2.73 7.56-3.26 3.6-1.52 4.35-1.78 4.84-1.79.11 0 .35.03.5.15.13.12.17.28.19.39.02.09.02.26.01.37z"/></svg>
+                <span>Telegram</span>
+            </a>
+            <button class="reader-share-btn copy-link" id="reader-share-copy-btn" title="Salin Link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <span>Salin Link</span>
+            </button>
+        </div>
+    `;
+
+    const copyBtn = readerShareContainer.querySelector("#reader-share-copy-btn");
+    if (copyBtn) {
+        copyBtn.onclick = (e) => {
+            e.preventDefault();
+            navigator.clipboard.writeText(chapShareUrl).then(() => {
+                showToast("Link chapter berhasil disalin!", "success");
+            }).catch(err => {
+                console.error("Gagal menyalin link:", err);
+            });
+        };
+    }
 }
 
 function closeMangaDetail() {
@@ -1190,6 +1312,9 @@ async function openChapterReader(mangaId, chapterNumber) {
                 nextBtn.onclick = null;
             }
         }
+        
+        // Render sharing buttons for reader
+        renderReaderShareButtons(mangaId, chapterNumber);
 
     } catch (err) {
         console.error(err);

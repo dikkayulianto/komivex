@@ -3354,3 +3354,157 @@ input:checked + .slider:before {
 }
 
 
+/* ────────────────────────────────────────────────────────
+   SOCIAL MEDIA SHARING BUTTONS
+   ──────────────────────────────────────────────────────── */
+
+/* Detail Modal share section */
+.manga-share-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 6px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    text-align: center;
+    width: 100%;
+}
+
+.share-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.share-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.share-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff !important;
+    cursor: pointer;
+    border: none;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.share-btn:hover {
+    transform: translateY(-3px) scale(1.1);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+}
+
+.share-btn:active {
+    transform: translateY(-1px) scale(0.95);
+}
+
+.share-btn svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+}
+
+.share-btn.facebook {
+    background: linear-gradient(135deg, #1877F2 0%, #0c63d4 100%);
+}
+.share-btn.twitter {
+    background: linear-gradient(135deg, #2b2b2b 0%, #0f1419 100%);
+}
+.share-btn.whatsapp {
+    background: linear-gradient(135deg, #25D366 0%, #1da851 100%);
+}
+.share-btn.telegram {
+    background: linear-gradient(135deg, #0088cc 0%, #006699 100%);
+}
+.share-btn.copy-link {
+    background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+}
+
+/* Reader View share container */
+.reader-share-container {
+    max-width: 600px;
+    margin: 20px auto 30px auto;
+    padding: 16px 20px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(10px);
+    width: calc(100% - 40px);
+}
+
+.reader-share-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.reader-share-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    width: 100%;
+    flex-wrap: wrap;
+}
+
+.reader-share-btn {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #ffffff !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.reader-share-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
+}
+
+.reader-share-btn.facebook {
+    background: linear-gradient(135deg, #1877F2 0%, #0c63d4 100%);
+}
+.reader-share-btn.twitter {
+    background: linear-gradient(135deg, #2b2b2b 0%, #0f1419 100%);
+}
+.reader-share-btn.whatsapp {
+    background: linear-gradient(135deg, #25D366 0%, #1da851 100%);
+}
+.reader-share-btn.telegram {
+    background: linear-gradient(135deg, #0088cc 0%, #006699 100%);
+}
+.reader-share-btn.copy-link {
+    background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+}
+
+.reader-share-btn svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+}
