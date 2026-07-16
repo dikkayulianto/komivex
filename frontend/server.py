@@ -149,8 +149,10 @@ def scrape_details(slug):
         with urllib.request.urlopen(req, context=ctx, timeout=8) as res:
             content = res.read().decode('utf-8', errors='ignore')
             
-            # Title
-            title_match = re.search(r'<div class="dtlx"><h1>([^<]+)</h1>', content)
+            # Title: inside <h1> (may have whitespace)
+            title_match = re.search(r'<h1[^>]*>\s*Komik\s*([^<]+)</h1>', content, re.IGNORECASE)
+            if not title_match:
+                title_match = re.search(r'<h1[^>]*>([^<]{3,120})</h1>', content)
             title = title_match.group(1).strip() if title_match else slug.replace('-', ' ').title()
             
             # Cover
@@ -160,7 +162,6 @@ def scrape_details(slug):
             cover = cover_match.group(1) if cover_match else "/assets/manga_cover_1.jpg"
             if cover.startswith('//'):
                 cover = 'https:' + cover
- 
             if cover.startswith('http'):
                 cover = f"/api/proxy-img?url={urllib.parse.quote(cover)}"
                 
@@ -170,8 +171,10 @@ def scrape_details(slug):
                 syn_match = re.search(r'class="[^"]*sinopsis[^"]*">([\s\S]*?)</div>', content)
             synopsis = re.sub(r'<[^>]+>', '', syn_match.group(1)).strip() if syn_match else "Sinopsis tidak tersedia."
             
-            # Author
-            author_match = re.search(r'<span><b>Author:</b>\s*([^<]+)</span>', content, re.IGNORECASE)
+            # Author: <b>Author:</b> followed by <a> tag or plain text
+            author_match = re.search(r'<b>Author:</b>\s*<a[^>]*>([^<]+)</a>', content, re.IGNORECASE)
+            if not author_match:
+                author_match = re.search(r'<b>Author:</b>\s*([^<]{2,80})<', content, re.IGNORECASE)
             author = author_match.group(1).strip() if author_match else "Unknown"
             
             # Genres
@@ -182,19 +185,33 @@ def scrape_details(slug):
             if not genres:
                 genre_links = re.findall(r'href="(?:https?://[^/]+)?/genres/([^/"]+)/?"[^>]*>([^<]+)</a>', content)
                 if genre_links:
-                    genres = [name.strip() for slug, name in genre_links if name.strip()]
+                    genres = [name.strip() for slug_g, name in genre_links if name.strip()]
             if not genres:
                 genres = ["Action"]
                 
-            # Type
-            type_match = re.search(r'<span><b>Type:</b>\s*([^<]+)</span>', content, re.IGNORECASE)
+            # Type: <b>Jenis Komik:</b> followed by <a> tag
+            type_match = re.search(r'<b>Jenis Komik:</b>\s*<a[^>]*>\s*([^<]+)\s*</a>', content, re.IGNORECASE)
+            if not type_match:
+                type_match = re.search(r'<b>Type:</b>\s*([^<]{2,30})<', content, re.IGNORECASE)
             manga_type = type_match.group(1).strip() if type_match else "Manga"
             
-            # Rating
-            rating_match = re.search(r'itemprop="ratingValue"[^>]*>\s*([\d\.]+)', content)
+            # Rating: text content of <i itemprop="ratingValue">
+            rating_match = re.search(r'itemprop="ratingValue"[^>]*>\s*([\d\.]+)\s*<', content)
             if not rating_match:
-                rating_match = re.search(r'<div class="rating">.*?<i>([\d\.]+)</i>', content, re.DOTALL)
+                rating_match = re.search(r'itemprop="ratingValue"[^>]*/?>\s*([\d\.]+)', content)
             rating = float(rating_match.group(1)) if rating_match else 7.5
+            
+            # Status
+            status_match = re.search(r'<b>Status:</b>\s*([^<]{2,30})<', content, re.IGNORECASE)
+            status = status_match.group(1).strip() if status_match else ""
+            
+            # Release year
+            year_match = re.search(r'<b>Rilis:</b>\s*<a[^>]*>(\d{4})</a>', content, re.IGNORECASE)
+            release_year = year_match.group(1) if year_match else ""
+            
+            # Readers count (used as popularity metric, no rank available on page)
+            readers_match = re.search(r'<b>Jumlah Pembaca:</b>\s*([^<]{1,30})<', content, re.IGNORECASE)
+            readers = readers_match.group(1).strip() if readers_match else ""
             
             # Chapters
             ch_matches = re.findall(r'href="https?://[^/]+/([^"]+-chapter-([\d\.]+)/)"', content)
@@ -218,12 +235,14 @@ def scrape_details(slug):
                 "title": title,
                 "type": manga_type,
                 "rating": rating,
-                "rank": 99,
+                "rank": readers,
                 "latestChapter": latest_ch,
                 "cover": cover,
                 "author": author,
                 "genres": genres,
                 "synopsis": synopsis,
+                "status": status,
+                "release_year": release_year,
                 "chapters": chapters
             }
     except Exception as e:
