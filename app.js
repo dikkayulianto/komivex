@@ -870,6 +870,31 @@ function renderModalData(manga) {
     renderMangaShareButtons(manga);
 }
 
+// ── Helper: Build share template sesuai format ──────────────────
+function buildShareTemplate({ title, type, chapterNumber, genres, rating, mangaId, url, isChapterMode }) {
+    // Emoji berdasarkan tipe manga
+    const emojiMap = { Manga: '📚', Manhwa: '🎭', Manhua: '⚔️' };
+    const emoji = emojiMap[type] || '📖';
+
+    // Slug hashtag dari manga id (camelCase tanpa strip)
+    const slugTag = (mangaId || '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+
+    // Genre
+    const genreStr = Array.isArray(genres) && genres.length ? genres.slice(0, 3).join(', ') : type;
+
+    // Rating
+    const ratingStr = rating ? parseFloat(rating).toFixed(1) : '-';
+
+    // Hashtag type
+    const typeTag = type ? `#${type}` : '#Manga';
+
+    if (isChapterMode) {
+        return `${emoji} ${title} Chapter ${chapterNumber} sudah update!\n\n📖 Genre: ${genreStr}\n⭐ Rating: ${ratingStr}\n\n👉 Baca sekarang:\n${url}\n\n#Komivex #${slugTag} ${typeTag} #Manhwa #Webtoon`;
+    } else {
+        return `${emoji} ${title} tersedia di Komivex!\n\n📖 Genre: ${genreStr}\n⭐ Rating: ${ratingStr}\n\n👉 Baca sekarang:\n${url}\n\n#Komivex #${slugTag} ${typeTag} #Manhwa #Webtoon`;
+    }
+}
+
 function renderMangaShareButtons(manga) {
     const detailLeft = document.querySelector(".manga-detail-card .detail-left");
     if (!detailLeft) return;
@@ -883,7 +908,16 @@ function renderMangaShareButtons(manga) {
 
     const shareUrl = `${window.location.origin}/index.html?manga=${encodeURIComponent(manga.id)}`;
     const shareTitle = manga.title;
-    const shareText = `Baca komik "${manga.title}" Bahasa Indonesia gratis di Komivex!`;
+    const shareText = buildShareTemplate({
+        title: manga.title,
+        type: manga.type,
+        chapterNumber: null,
+        genres: manga.genres,
+        rating: manga.rating,
+        mangaId: manga.id,
+        url: shareUrl,
+        isChapterMode: false
+    });
 
     // Gunakan Web Share API native jika browser mendukung (terutama HP)
     if (navigator.share) {
@@ -947,10 +981,11 @@ function renderMangaShareButtons(manga) {
     if (copyBtn) {
         copyBtn.onclick = (e) => {
             e.preventDefault();
-            navigator.clipboard.writeText(shareUrl).then(() => {
-                showToast("Link manga berhasil disalin!", "success");
+            // Salin seluruh template (teks + link)
+            navigator.clipboard.writeText(shareText).then(() => {
+                showToast("Template share berhasil disalin!", "success");
             }).catch(err => {
-                console.error("Gagal menyalin link:", err);
+                console.error("Gagal menyalin:", err);
             });
         };
     }
@@ -969,7 +1004,19 @@ function renderReaderShareButtons(mangaId, chapterNumber) {
 
     const chapShareUrl = `${window.location.origin}/read.html?manga=${encodeURIComponent(mangaId)}&chapter=${encodeURIComponent(chapterNumber)}`;
     const chapShareTitle = `${currentMangaTitleForReader || mangaId} - Chapter ${chapterNumber}`;
-    const chapShareText = `Baca komik "${currentMangaTitleForReader || mangaId}" Chapter ${chapterNumber} Bahasa Indonesia gratis di Komivex!`;
+
+    // Ambil data manga dari cache untuk genre dan rating
+    const cachedManga = mangaDetailsCache[mangaId] || {};
+    const chapShareText = buildShareTemplate({
+        title: currentMangaTitleForReader || mangaId,
+        type: cachedManga.type || 'Manga',
+        chapterNumber: chapterNumber,
+        genres: cachedManga.genres || [],
+        rating: cachedManga.rating || null,
+        mangaId: mangaId,
+        url: chapShareUrl,
+        isChapterMode: true
+    });
 
     // Gunakan Web Share API native jika browser mendukung (terutama HP)
     if (navigator.share) {
@@ -1045,10 +1092,11 @@ function renderReaderShareButtons(mangaId, chapterNumber) {
     if (copyBtn) {
         copyBtn.onclick = (e) => {
             e.preventDefault();
-            navigator.clipboard.writeText(chapShareUrl).then(() => {
-                showToast("Link chapter berhasil disalin!", "success");
+            // Salin seluruh template (teks + link)
+            navigator.clipboard.writeText(chapShareText).then(() => {
+                showToast("Template share berhasil disalin!", "success");
             }).catch(err => {
-                console.error("Gagal menyalin link:", err);
+                console.error("Gagal menyalin:", err);
             });
         };
     }
