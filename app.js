@@ -882,7 +882,34 @@ function renderMangaShareButtons(manga) {
     }
 
     const shareUrl = `${window.location.origin}/index.html?manga=${encodeURIComponent(manga.id)}`;
+    const shareTitle = manga.title;
     const shareText = `Baca komik "${manga.title}" Bahasa Indonesia gratis di Komivex!`;
+
+    // Gunakan Web Share API native jika browser mendukung (terutama HP)
+    if (navigator.share) {
+        shareSection.innerHTML = `
+            <span class="share-label">Bagikan Manga Ini:</span>
+            <button class="native-share-btn" id="manga-native-share-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                    <circle cx="18" cy="5" r="3"/>
+                    <circle cx="6" cy="12" r="3"/>
+                    <circle cx="18" cy="19" r="3"/>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+                Bagikan ke...
+            </button>
+        `;
+        const nativeBtn = shareSection.querySelector("#manga-native-share-btn");
+        if (nativeBtn) {
+            nativeBtn.onclick = () => {
+                navigator.share({ title: shareTitle, text: shareText, url: shareUrl })
+                    .then(() => showToast("Berhasil dibagikan!", "success"))
+                    .catch(() => {});
+            };
+        }
+        return;
+    }
 
     shareSection.innerHTML = `
         <span class="share-label">Bagikan:</span>
@@ -941,7 +968,43 @@ function renderReaderShareButtons(mangaId, chapterNumber) {
     }
 
     const chapShareUrl = `${window.location.origin}/read.html?manga=${encodeURIComponent(mangaId)}&chapter=${encodeURIComponent(chapterNumber)}`;
+    const chapShareTitle = `${currentMangaTitleForReader || mangaId} - Chapter ${chapterNumber}`;
     const chapShareText = `Baca komik "${currentMangaTitleForReader || mangaId}" Chapter ${chapterNumber} Bahasa Indonesia gratis di Komivex!`;
+
+    // Gunakan Web Share API native jika browser mendukung (terutama HP)
+    if (navigator.share) {
+        readerShareContainer.innerHTML = `
+            <span class="reader-share-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                    <circle cx="18" cy="5" r="3"/>
+                    <circle cx="6" cy="12" r="3"/>
+                    <circle cx="18" cy="19" r="3"/>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+                Bagikan Chapter Ini:
+            </span>
+            <button class="native-share-btn" id="reader-native-share-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                    <circle cx="18" cy="5" r="3"/>
+                    <circle cx="6" cy="12" r="3"/>
+                    <circle cx="18" cy="19" r="3"/>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+                Bagikan ke...
+            </button>
+        `;
+        const nativeBtn = readerShareContainer.querySelector("#reader-native-share-btn");
+        if (nativeBtn) {
+            nativeBtn.onclick = () => {
+                navigator.share({ title: chapShareTitle, text: chapShareText, url: chapShareUrl })
+                    .then(() => showToast("Berhasil dibagikan!", "success"))
+                    .catch(() => {});
+            };
+        }
+        return;
+    }
 
     readerShareContainer.innerHTML = `
         <span class="reader-share-title">
