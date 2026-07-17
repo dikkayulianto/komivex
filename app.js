@@ -868,6 +868,70 @@ function renderModalData(manga) {
     updateBookmarkBtnUI(manga.id, manga);
     renderChaptersList(manga);
     renderMangaShareButtons(manga);
+    renderDetailComments(manga);
+}
+
+// ── Detail Modal Comments ──────────────────────────────────────
+let currentDetailMangaId = null;
+let currentDetailMangaTitle = null;
+
+function renderDetailComments(manga) {
+    currentDetailMangaId = manga.id;
+    currentDetailMangaTitle = manga.title;
+
+    const authEl = document.getElementById("detail-comments-auth-required");
+    const formEl = document.getElementById("detail-comments-form-wrapper");
+    if (authEl && formEl) {
+        if (currentUser) {
+            authEl.style.display = "none";
+            formEl.style.display = "block";
+        } else {
+            authEl.style.display = "block";
+            formEl.style.display = "none";
+        }
+    }
+    fetchDetailComments(manga.id);
+}
+
+async function fetchDetailComments(mangaId) {
+    const listContainer = document.getElementById("detail-comments-list");
+    if (!listContainer) return;
+    try {
+        const res = await fetch(`/api/comments?manga=${encodeURIComponent(mangaId)}`);
+        if (!res.ok) throw new Error("Gagal mengambil komentar");
+        const comments = await res.json();
+        listContainer.innerHTML = "";
+        if (comments.length === 0) {
+            listContainer.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">Belum ada komentar. Jadilah yang pertama berkomentar!</p>`;
+            return;
+        }
+        comments.forEach(comment => {
+            const item = document.createElement("div");
+            item.className = "comment-item";
+            const firstLetter = comment.username.charAt(0).toUpperCase();
+            const timeStr = new Date(comment.created_at + "Z").toLocaleString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+                day: '2-digit',
+                month: '2-digit'
+            });
+            const chapterBadge = comment.chapter_id ? `<span class="comment-chapter-label">Ch. ${comment.chapter_id}</span>` : '';
+            item.innerHTML = `
+                <div class="comment-avatar">${firstLetter}</div>
+                <div class="comment-content">
+                    <div class="comment-meta">
+                        <span class="comment-username">${escapeHTML(comment.username)}</span>
+                        ${chapterBadge}
+                        <span class="comment-time">${timeStr}</span>
+                    </div>
+                    <div class="comment-body">${escapeHTML(comment.content)}</div>
+                </div>
+            `;
+            listContainer.appendChild(item);
+        });
+    } catch (err) {
+        console.error("Error fetching detail comments:", err);
+    }
 }
 
 // ── Helper: Copy ke clipboard (dengan fallback execCommand) ─────
@@ -1748,13 +1812,18 @@ function updateAuthUI() {
             if (mobNavAdmin) mobNavAdmin.style.display = "none";
         }
 
-        // Show bell wrapper and comments form
+        // Show bell wrapper and comments form (reader)
         const bellWrapper = document.getElementById("notification-bell-wrapper");
         if (bellWrapper) bellWrapper.style.display = "inline-block";
         const commentsAuth = document.getElementById("reader-comments-auth-required");
         const commentsForm = document.getElementById("reader-comments-form-wrapper");
         if (commentsAuth) commentsAuth.style.display = "none";
         if (commentsForm) commentsForm.style.display = "block";
+        // Show detail modal comment form
+        const detailCommentsAuth = document.getElementById("detail-comments-auth-required");
+        const detailCommentsForm = document.getElementById("detail-comments-form-wrapper");
+        if (detailCommentsAuth) detailCommentsAuth.style.display = "none";
+        if (detailCommentsForm) detailCommentsForm.style.display = "block";
         
         startNotificationsPolling();
     } else {
@@ -1768,7 +1837,7 @@ function updateAuthUI() {
         if (mobNavDashboard) mobNavDashboard.style.display = "none";
         if (mobNavAdmin) mobNavAdmin.style.display = "none";
 
-        // Hide bell wrapper and comments form
+        // Hide bell wrapper and comments form (reader)
         const bellWrapper = document.getElementById("notification-bell-wrapper");
         if (bellWrapper) bellWrapper.style.display = "none";
         const dropdown = document.getElementById("notification-dropdown");
@@ -1777,6 +1846,11 @@ function updateAuthUI() {
         const commentsForm = document.getElementById("reader-comments-form-wrapper");
         if (commentsAuth) commentsAuth.style.display = "block";
         if (commentsForm) commentsForm.style.display = "none";
+        // Hide detail modal comment form
+        const detailCommentsAuth = document.getElementById("detail-comments-auth-required");
+        const detailCommentsForm = document.getElementById("detail-comments-form-wrapper");
+        if (detailCommentsAuth) detailCommentsAuth.style.display = "block";
+        if (detailCommentsForm) detailCommentsForm.style.display = "none";
         
         stopNotificationsPolling();
     }
@@ -2346,6 +2420,55 @@ function setupEventListeners() {
     const commentLoginBtn = document.getElementById("reader-comments-login-btn");
     if (commentLoginBtn) {
         commentLoginBtn.addEventListener("click", () => {
+            const loginModal = document.getElementById("login-modal");
+            if (loginModal) {
+                loginModal.classList.add("open");
+                document.body.style.overflow = "hidden";
+            }
+        });
+    }
+
+    // Setup Detail Modal Comments Form Submission
+    const detailCommentForm = document.getElementById("detail-comment-form");
+    if (detailCommentForm) {
+        detailCommentForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const input = document.getElementById("detail-comment-input");
+            const content = input.value.trim();
+            if (!content || !currentUser || !currentDetailMangaId) return;
+
+            try {
+                const response = await fetch('/api/comments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        manga_id: currentDetailMangaId,
+                        manga_title: currentDetailMangaTitle,
+                        chapter_id: null,
+                        username: currentUser.username,
+                        email: currentUser.email,
+                        content: content
+                    })
+                });
+                const resData = await response.json();
+                if (response.ok && resData.status === "success") {
+                    input.value = "";
+                    showToast("Komentar berhasil dikirim!", "success");
+                    fetchDetailComments(currentDetailMangaId);
+                } else {
+                    showToast("Gagal mengirim komentar", "info");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Eror mengirim komentar", "error");
+            }
+        });
+    }
+
+    // Auth redirection from detail modal comments auth block
+    const detailCommentLoginBtn = document.getElementById("detail-comments-login-btn");
+    if (detailCommentLoginBtn) {
+        detailCommentLoginBtn.addEventListener("click", () => {
             const loginModal = document.getElementById("login-modal");
             if (loginModal) {
                 loginModal.classList.add("open");

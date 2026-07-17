@@ -161,11 +161,17 @@ def scrape_details(slug):
             synopsis_match = re.search(r'<div class="desc">.*?<p>(.*?)</p>', content, re.DOTALL)
         synopsis = re.sub(r'<[^>]+>', '', synopsis_match.group(1)).strip() if synopsis_match else "Tidak ada sinopsis."
 
-        # Author: <b>Author:</b> followed by <a> or plain text
-        author_match = re.search(r'<b>Author:</b>\s*<a[^>]*>([^<]+)</a>', content, re.IGNORECASE)
-        if not author_match:
-            author_match = re.search(r'<b>Author:</b>\s*([^<]{2,80})<', content, re.IGNORECASE)
-        author = author_match.group(1).strip() if author_match else "Unknown"
+        # Author: <b>Author:</b> followed by one or more <a> tags (multiple authors)
+        author_matches = re.findall(r'<b>Author:</b>\s*([\s\S]*?)</span>', content, re.IGNORECASE)
+        author = "Unknown"
+        if author_matches:
+            author_links = re.findall(r'<a[^>]*>([^<]+)</a>', author_matches[0])
+            if author_links:
+                author = ', '.join(a.strip() for a in author_links if a.strip())
+            else:
+                plain = re.sub(r'<[^>]+>', '', author_matches[0]).strip()
+                if plain:
+                    author = plain
 
         # Type: <b>Jenis Komik:</b> followed by <a> tag
         type_match = re.search(r'<b>Jenis Komik:</b>\s*<a[^>]*>\s*([^<]+)\s*</a>', content, re.IGNORECASE)
@@ -183,23 +189,28 @@ def scrape_details(slug):
             if genre_links:
                 genre_matches = [name.strip() for slug_g, name in genre_links if name.strip()]
 
-        # Rating: text content of <i itemprop="ratingValue">
-        rating_match = re.search(r'itemprop="ratingValue"[^>]*>\s*([\d\.]+)\s*<', content)
+        # Rating: text content of <i itemprop="ratingValue"> (multiline)
+        rating_match = re.search(r'itemprop="ratingValue"[^>]*>\s*([\d\.]+)\s*<', content, re.DOTALL)
         if not rating_match:
-            rating_match = re.search(r'itemprop="ratingValue"[^>]*/?>?\s*([\d\.]+)', content)
-        rating = float(rating_match.group(1)) if rating_match else 7.5
+            pct_match = re.search(r'archiveanime-rating-bar[^>]*><span style="width:(\d+)%"', content)
+            if pct_match:
+                rating = round(float(pct_match.group(1)) / 10, 1)
+            else:
+                rating = 7.5
+        else:
+            rating = float(rating_match.group(1))
 
-        # Status
-        status_match = re.search(r'<b>Status:</b>\s*([^<]{2,30})<', content, re.IGNORECASE)
-        status = status_match.group(1).strip() if status_match else "Ongoing"
+        # Status: may have whitespace/newlines between tag and text
+        status_match = re.search(r'<b>Status:</b>\s*([\s\S]{2,40}?)</span>', content, re.IGNORECASE)
+        status = re.sub(r'<[^>]+>', '', status_match.group(1)).strip() if status_match else "Ongoing"
 
         # Release year
         year_match = re.search(r'<b>Rilis:</b>\s*<a[^>]*>(\d{4})</a>', content, re.IGNORECASE)
         release_year = year_match.group(1) if year_match else ""
 
         # Readers count as rank proxy
-        readers_match = re.search(r'<b>Jumlah Pembaca:</b>\s*([^<]{1,30})<', content, re.IGNORECASE)
-        readers = readers_match.group(1).strip() if readers_match else ""
+        readers_match = re.search(r'<b>Jumlah Pembaca:</b>\s*([\s\S]{1,50}?)</span>', content, re.IGNORECASE)
+        readers = re.sub(r'<[^>]+>', '', readers_match.group(1)).strip() if readers_match else ""
 
         # Chapters
         ch_matches = re.findall(r'href="https?://[^/]+/([^"]+-chapter-([\d\.]+)/)"', content)
