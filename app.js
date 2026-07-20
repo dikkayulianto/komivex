@@ -182,9 +182,9 @@ function mapJikanManga(manga) {
         id: manga.mal_id.toString(),
         title: manga.title_english || manga.title,
         type: manga.type || "Manga",
-        rating: manga.score || 0.0,
-        rank: manga.rank || 99,
-        latestChapter: manga.chapters || 120, // default if chapters is null (ongoing)
+        rating: manga.score || 0,
+        rank: (typeof manga.rank === 'number') ? manga.rank : 99,
+        latestChapter: manga.chapters || 0,
         cover: manga.images.jpg.image_url,
         author: manga.authors && manga.authors.length > 0 ? manga.authors[0].name : "Unknown",
         genres: manga.genres ? manga.genres.map(g => g.name) : ["Fantasy"],
@@ -415,23 +415,29 @@ async function renderPopularGrid() {
         }
     }
 
-    list.forEach(manga => {
+    list.forEach((manga, idx) => {
         const card = document.createElement("div");
         card.className = "manga-card";
         card.setAttribute("data-id", manga.id);
         const ratingVal = parseFloat(manga.rating) || 0;
+        const ratingDisplay = ratingVal > 0 ? ratingVal.toFixed(1) : '-';
+        // Rank: use sequential position, fallback to manga.rank if it's a valid number
+        const rankDisplay = (typeof manga.rank === 'number' && manga.rank < 99)
+            ? `#${manga.rank}`
+            : `#${idx + 1}`;
+        const latestCh = manga.latestChapter || manga.latest_chapter || '?';
         
         card.innerHTML = `
             <div class="manga-card-badges">
-                <span class="type-tag ${manga.type.toLowerCase()}">${manga.type}</span>
-                <span class="rank-badge">${manga.rank}</span>
+                <span class="type-tag ${(manga.type || 'manga').toLowerCase()}">${manga.type || 'Manga'}</span>
+                <span class="rank-badge">${rankDisplay}</span>
             </div>
             <img src="${manga.cover}" alt="${manga.title}" class="manga-card-image" loading="lazy" onerror="this.src='assets/manga_cover_1.jpg'">
             <div class="manga-card-overlay">
                 <h3 class="manga-card-title">${manga.title}</h3>
                 <div class="manga-card-meta">
-                    <span class="manga-card-ch">Ch. ${manga.latestChapter}</span>
-                    <span class="manga-card-rating">⭐ ${ratingVal.toFixed(1)}</span>
+                    <span class="manga-card-ch">Ch. ${latestCh}</span>
+                    <span class="manga-card-rating">⭐ ${ratingDisplay}</span>
                 </div>
             </div>
         `;

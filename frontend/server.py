@@ -78,49 +78,64 @@ def fetch_html(url):
 
 def parse_card(part):
     slug_match = re.search(r'href="https?://[^/]+/komik/([^/]+)/"', part)
+    
+    # Title: from title= attribute or from <h4> (may be multiline)
     title_match = re.search(r'title="(?:Komik|Manga)\s*([^"]+)"', part)
     if not title_match:
-        title_match = re.search(r'<h4>([^<]+)</h4>', part)
+        h4_match = re.search(r'<h4>([\s\S]*?)</h4>', part)
+        if h4_match:
+            title_match = h4_match
         
     cover_match = re.search(r'data-lazy-src="([^"]+)"', part)
     if not cover_match:
         cover_match = re.search(r'<noscript><img[^>]+src="([^"]+)"', part)
+    if not cover_match:
+        cover_match = re.search(r'<img[^>]+src="(https?://[^"]+)"', part)
         
     cover = "/assets/manga_cover_1.jpg"
     if cover_match:
         cover = cover_match.group(1)
-    else:
-        img_srcs = re.findall(r'<img[^>]+src="([^"]+)"', part)
-        for src in img_srcs:
-            if not src.startswith('data:'):
-                cover = src
-                break
         
     type_match = re.search(r'class="typeflag\s*([^"]+)"', part)
     
-    # Match rating
-    rating_match = re.search(r'<div class="rating">.*?<i>([\d\.]+)</i>', part, re.DOTALL)
-    if not rating_match:
-        rating_match = re.search(r'(?:⭐|<i class="fa(?:s)? fa-star"></i>)\s*([\d\.]+)', part)
+    # Rating: NOT available in homepage cards — will be 0 (fetched from detail page later)
+    rating = 0
     
-    # Chapter info
-    ch_match = re.search(r'href="https?://[^/]+/([^"]+)-chapter-([\d\.]+)/"', part)
+    # Chapter: from chapter URL href (most reliable)
+    ch_match = re.search(r'href="https?://[^/]+/[^"]*-chapter-([\d\.]+)/"', part)
     latest_ch = 1
     if ch_match:
-        latest_ch = float(ch_match.group(2))
-        if latest_ch.is_integer():
-            latest_ch = int(latest_ch)
-    else:
-        ch_text_match = re.search(r'Ch\.\s*([\d\.]+)', part)
-        if ch_text_match:
-            latest_ch = float(ch_text_match.group(1))
+        try:
+            latest_ch = float(ch_match.group(1))
             if latest_ch.is_integer():
                 latest_ch = int(latest_ch)
+        except:
+            pass
+    else:
+        # Fallback: "Ch.\t79" or "Ch. 79" in visible text
+        ch_text_match = re.search(r'Ch\.\s*([\d\.]+)', part)
+        if ch_text_match:
+            try:
+                latest_ch = float(ch_text_match.group(1))
+                if latest_ch.is_integer():
+                    latest_ch = int(latest_ch)
+            except:
+                pass
 
     slug = slug_match.group(1) if slug_match else "unknown"
-    title = title_match.group(1).strip() if title_match else slug.replace('-', ' ').title()
-    manga_type = type_match.group(1).strip() if type_match else "Manga"
-    rating = float(rating_match.group(1)) if rating_match else 7.5
+    if title_match:
+        # Clean up multiline/extra whitespace from title
+        title = re.sub(r'\s+', ' ', title_match.group(1)).strip()
+    else:
+        title = slug.replace('-', ' ').title()
+    manga_type = type_match.group(1).strip().capitalize() if type_match else "Manga"
+    # Normalize type
+    if manga_type.lower() == 'manhwa':
+        manga_type = 'Manhwa'
+    elif manga_type.lower() == 'manhua':
+        manga_type = 'Manhua'
+    else:
+        manga_type = 'Manga'
 
     if cover.startswith('//'):
         cover = 'https:' + cover
