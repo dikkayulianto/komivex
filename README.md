@@ -32,16 +32,6 @@ Komivex adalah platform baca komik modern yang scalable, modular, dan AI-ready.
 
 ---
 
-## AI Support
-
-- AntiGravity
-- Cursor
-- Codex
-- Claude Code
-- GitHub Copilot
-
----
-
 ## Project Status
 
 🟢 Active Development
