@@ -1886,9 +1886,19 @@ function setupEventListeners() {
         searchInput.focus();
     });
 
-    filterToggleBtn.addEventListener("click", () => {
+    filterToggleBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
         filterPanel.classList.toggle("open");
         filterToggleBtn.classList.toggle("active");
+    });
+
+    document.addEventListener("click", (e) => {
+        if (filterPanel && filterPanel.classList.contains("open")) {
+            if (!filterPanel.contains(e.target) && !filterToggleBtn.contains(e.target)) {
+                filterPanel.classList.remove("open");
+                filterToggleBtn.classList.remove("active");
+            }
+        }
     });
 
     togglePopularBtn.addEventListener("click", () => {
