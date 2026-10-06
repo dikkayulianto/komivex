@@ -32,7 +32,7 @@ DEFAULT_CONFIG = {
     "meta_title": "Komivex - Baca Manga Terpopuler",
     "meta_description": "Platform baca komik (Manga, Manhua, Manhwa) terpopuler dan terlengkap gratis bahasa Indonesia.",
     "verification_code": "",
-    "scraper_target_domain": "https://komikcast.app",
+    "scraper_target_domain": "https://v6.voratoon.com",
     "custom_ad_codes": {
         "head": "",
         "body": "",
@@ -60,8 +60,8 @@ if os.path.exists(CONFIG_FILE):
 
 def get_scraper_domain():
     domain = site_config.get("scraper_target_domain", "").strip().rstrip('/')
-    if not domain or "bacakomik" in domain or "shinigami" in domain or "komikcast.info" in domain:
-        domain = "https://komikcast.app"
+    if not domain or any(x in domain for x in ["bacakomik", "shinigami", "komikcast.info"]):
+        domain = "https://v6.voratoon.com"
     return domain
 
 
@@ -89,59 +89,72 @@ def fetch_html(url):
 # ─────────────────────────────────────────────
 # Parsers
 # ─────────────────────────────────────────────
-def parse_card(part):
-    """Parse a manga card from komikcast.app homepage HTML block."""
-    slug_match = re.search(r'href="https?://[^/]+/(?:manga|komik|series)/([^/"]+)/?"', part)
-    title_match = re.search(r'<h[234][^>]*>\s*([^<]{2,120})\s*</h[234]>', part)
+def parse_card(part, default_rank=99):
+    """Parse a manga card from Voratoon / standard manga card HTML block."""
+    import html as html_lib
+    clean_part = html_lib.unescape(part)
+    slug_match = re.search(r'href=["\'](?:https?://[^/]+)?/(?:series|manga|komik)/([^/"\'\s>]+)', clean_part)
+    if not slug_match:
+        return None
+    slug = slug_match.group(1).strip()
+    if slug in ['browse', 'updates', 'ranking', 'premium', 'library', 'notifications', 'account', 'profile', 'kultivasi', 'announcements']:
+        return None
+
+    title_match = re.search(r'class="[^"]*(?:card-title|comic-title|title)[^"]*"[^>]*>([^<]+)</a>', clean_part)
     if not title_match:
-        title_match = re.search(r'title="(?:Komik|Manga)?\s*([^"]{2,120})"', part)
-    cover_match = re.search(r'data-src="(https?://[^"]+)"', part)
+        title_match = re.search(r'<h[234][^>]*>\s*([^<]{2,120})\s*</h[234]>', clean_part)
+    if not title_match:
+        title_match = re.search(r'alt="(?:Cover\s+)?([^"]{2,120})"', clean_part)
+    title = html_lib.unescape(title_match.group(1)).strip() if title_match else slug.replace('-', ' ').title()
+    title = re.sub(r'\s+', ' ', title)
+
+    cover_match = re.search(r'src=["\']([^"\']*(?:/cover/|cvr\.voratoon|/api/cover)[^"\']*)["\']', clean_part)
     if not cover_match:
-        cover_match = re.search(r'data-lazy-src="(https?://[^"]+)"', part)
+        cover_match = re.search(r'data-src=["\']([^"\']+)["\']', clean_part)
     if not cover_match:
-        cover_match = re.search(r'<noscript><img[^>]+src="([^"]+)"', part)
-    if not cover_match:
-        cover_match = re.search(r'<img[^>]+src="(https?://[^"]+\.(?:jpg|png|webp)[^"]*)"', part)
+        cover_match = re.search(r'<img[^>]+src=["\']([^"\']+\.(?:jpg|png|webp)[^"\']*)["\']', clean_part)
+
     cover = "/assets/manga_cover_1.jpg"
     if cover_match:
-        cover = cover_match.group(1)
+        c_url = cover_match.group(1).strip()
+        domain = get_scraper_domain()
+        if c_url.startswith('/api/cover'):
+            c_url = f"{domain}{c_url}"
+        elif c_url.startswith('//'):
+            c_url = f"https:{c_url}"
+        if c_url.startswith('http'):
+            cover = f"/api/proxy-img?url={urllib.parse.quote(c_url)}"
+
     manga_type = "Manga"
-    type_m = re.search(r'class="[^"]*\b(Manhwa|Manhua|Manga)\b[^"]*"', part, re.IGNORECASE)
-    if not type_m:
-        type_m = re.search(r'<span[^>]*>\s*(Manhwa|Manhua|Manga)\s*</span>', part, re.IGNORECASE)
-    if type_m:
-        t = type_m.group(1).strip()
-        if t.lower() == 'manhwa': manga_type = 'Manhwa'
-        elif t.lower() == 'manhua': manga_type = 'Manhua'
-    rating = 0.0
-    rating_m = re.search(r'aria-label="Rating\s*([\d\.]+)\s*dari\s*10"', part, re.IGNORECASE)
+    if 'kr.png' in clean_part or 'manhwa' in clean_part.lower():
+        manga_type = "Manhwa"
+    elif 'cn.png' in clean_part or 'manhua' in clean_part.lower():
+        manga_type = "Manhua"
+    elif 'jp.png' in clean_part or 'manga' in clean_part.lower():
+        manga_type = "Manga"
+
+    rating = 8.0
+    rating_m = re.search(r'class="[^"]*rating[^"]*"[^>]*>([\d\.]+)', clean_part)
     if not rating_m:
-        rating_m = re.search(r'class="system-rating"[\s\S]{0,120}<span[^>]*>([\d\.]+)</span>', part)
+        rating_m = re.search(r'aria-label="Rating\s*([\d\.]+)', clean_part)
     if rating_m:
         try: rating = float(rating_m.group(1))
         except: pass
-    ch_match = re.search(r'/chapter[-/]([\d\.]+)/?["\s]', part, re.IGNORECASE)
+
+    ch_match = re.search(r'(?:Chapter|Ch\.?|chapter[-/])\s*([\d\.]+)', clean_part, re.IGNORECASE)
     latest_ch = 1
     if ch_match:
         try:
             v = float(ch_match.group(1))
             latest_ch = int(v) if v.is_integer() else v
         except: pass
-    else:
-        ch_txt = re.search(r'(?:Ch|Chapter)\.?\s*([\d\.]+)', part, re.IGNORECASE)
-        if ch_txt:
-            try:
-                v = float(ch_txt.group(1))
-                latest_ch = int(v) if v.is_integer() else v
-            except: pass
-    slug = slug_match.group(1) if slug_match else "unknown"
-    title = re.sub(r'\s+', ' ', title_match.group(1)).strip() if title_match else slug.replace('-', ' ').title()
-    if cover.startswith('/'*2): cover = 'https:' + cover
-    if cover.startswith('http'):
-        cover = f"/api/proxy-img?url={urllib.parse.quote(cover)}"
+
+    rank_m = re.search(r'class="[^"]*comic-rank-num[^"]*"[^>]*>(\d+)</span>', clean_part)
+    rank = int(rank_m.group(1)) if rank_m else default_rank
+
     return {
         "id": slug, "title": title, "type": manga_type,
-        "rating": rating, "rank": 99, "latestChapter": latest_ch,
+        "rating": rating, "rank": rank, "latestChapter": latest_ch,
         "cover": cover, "author": "Unknown", "genres": ["Action"],
         "synopsis": "Sinopsis tidak tersedia.", "updatedAt": "Baru saja"
     }
@@ -149,92 +162,113 @@ def parse_card(part):
 
 def scrape_details(slug):
     try:
+        import html as html_lib
         domain = get_scraper_domain()
         try:
-            url = f"{domain}/manga/{slug}/"
+            url = f"{domain}/series/{slug}"
             content = fetch_html(url)
         except Exception:
-            url = f"{domain}/komik/{slug}/"
-            content = fetch_html(url)
+            try:
+                url = f"{domain}/manga/{slug}/"
+                content = fetch_html(url)
+            except Exception:
+                url = f"{domain}/komik/{slug}/"
+                content = fetch_html(url)
 
-                # Title
-        title_m = re.search(r'<h1[^>]*>\s*([\s\S]{2,150}?)\s*</h1>', content)
-        title = re.sub(r'<[^>]+>', '', title_m.group(1)).strip() if title_m else slug.replace('-', ' ').title()
+        title_m = re.search(r'<h1[^>]*>\s*([\s\S]{1,150}?)\s*</h1>', content)
+        title = html_lib.unescape(re.sub(r'<[^>]+>', '', title_m.group(1)).strip()) if title_m else slug.replace('-', ' ').title()
         title = re.sub(r'\s+', ' ', title)
-        # Cover
-        cover_match = re.search(r'<meta property="og:image"\s+content="([^"]+)"', content)
+
+        cover_match = re.search(r'src=["\']([^"\']*/cover/[^"\']*)["\']', content)
+        if not cover_match:
+            cover_match = re.search(r'src=["\']([^"\']*(?:cvr\.voratoon|/api/cover)[^"\']*)["\']', content)
+        if not cover_match:
+            cover_match = re.search(r'<meta\s+property="og:image"\s+content="([^"]+)"', content)
         if not cover_match:
             cover_match = re.search(r'data-src="(https?://[^"]+\.(?:jpg|png|webp)[^"]*)"', content)
-        if not cover_match:
-            cover_match = re.search(r'<img[^>]+src="(https?://[^"]+\.(?:jpg|png|webp)[^"]*)"', content)
-        cover_raw = cover_match.group(1) if cover_match else None
-        if cover_raw and cover_raw.startswith('//'): cover_raw = 'https:' + cover_raw
-        cover = f"/api/proxy-img?url={urllib.parse.quote(cover_raw)}" if cover_raw and cover_raw.startswith('http') else "/assets/manga_cover_1.jpg"
-        # Synopsis
-        syn_m = re.search(r'<div[^>]+class="[^"]*(?:synopsis|sinopsis|description|entry-content)[^"]*"[^>]*>([\s\S]*?)</div>', content, re.IGNORECASE)
+
+        cover = "/assets/manga_cover_1.jpg"
+        if cover_match:
+            cover_raw = html_lib.unescape(cover_match.group(1).strip())
+            if cover_raw.startswith('/api/cover'):
+                cover_raw = f"{domain}{cover_raw}"
+            elif cover_raw.startswith('//'):
+                cover_raw = 'https:' + cover_raw
+            if cover_raw.startswith('http'):
+                cover = f"/api/proxy-img?url={urllib.parse.quote(cover_raw)}"
+
+        syn_m = re.search(r'class="[^"]*(?:synopsis|description|summary|story|entry-content)[^"]*"[^>]*>([\s\S]*?)</div>', content, re.IGNORECASE)
         if not syn_m:
             syn_m = re.search(r'<meta\s+name="description"\s+content="([^"]+)"', content, re.IGNORECASE)
-        synopsis = re.sub(r'<[^>]+>', '', syn_m.group(1)).strip() if syn_m else "Tidak ada sinopsis."
+        synopsis = html_lib.unescape(re.sub(r'<[^>]+>', '', syn_m.group(1)).strip()) if syn_m else "Tidak ada sinopsis."
         synopsis = re.sub(r'\s+', ' ', synopsis)
-        # Author
-        author = "Unknown"
-        m_author = re.search(r'"author":\{"@type":"Person","name":"([^"]+)"\}', content)
-        if m_author:
-            author = m_author.group(1).strip()
-        else:
-            auth_block = re.search(r'(?:Author|Pengarang|Penulis)[^<]{0,40}((?:<[^>]+>[^<]*){1,15})', content, re.IGNORECASE)
-            if auth_block:
-                links = re.findall(r'<a[^>]*>([^<]+)</a>', auth_block.group(1))
-                if links:
-                    author = ', '.join(a.strip() for a in links if a.strip())
-                else:
-                    author = re.sub(r'<[^>]+>', '', auth_block.group(1)).strip() or "Unknown"
-        # Genres
-        genre_matches = re.findall(r'href="[^"]+/(?:genre|tag|genres)/[^/"]+/?"[^>]*>\s*([^<]{2,40})\s*</a>', content, re.IGNORECASE)
-        if not genre_matches: genre_matches = ["Action"]
-        genre_matches = list(dict.fromkeys(g.strip() for g in genre_matches if g.strip()))[:10]
-        # Type
+
+        auth_m = re.search(r'<meta\s+property="article:author"\s+content="([^"]+)"', content, re.IGNORECASE)
+        if not auth_m:
+            auth_m = re.search(r'<meta\s+name="author"\s+content="([^"]+)"', content, re.IGNORECASE)
+        author = html_lib.unescape(auth_m.group(1).strip()) if auth_m and auth_m.group(1).lower() != 'voratoon' else "Unknown"
+        if author == "Unknown":
+            m_author = re.search(r'"author":\{"@type":"Person","name":"([^"]+)"\}', content)
+            if m_author:
+                author = m_author.group(1).strip()
+            else:
+                auth_block = re.search(r'(?:Author|Pengarang|Penulis)[^<]{0,40}((?:<[^>]+>[^<]*){1,15})', content, re.IGNORECASE)
+                if auth_block:
+                    links = re.findall(r'<a[^>]*>([^<]+)</a>', auth_block.group(1))
+                    if links:
+                        author = ', '.join(a.strip() for a in links if a.strip())
+                    else:
+                        author = re.sub(r'<[^>]+>', '', auth_block.group(1)).strip() or "Unknown"
+
+        genres = re.findall(r'href=["\']/browse\?genre=([^"&]+)["\']', content)
+        if not genres:
+            genres = re.findall(r'class="[^"]*(?:genre-badge|tag-genre|genre)[^"]*"[^>]*>([^<]+)<', content)
+        if not genres:
+            genres = re.findall(r'href="[^"]+/(?:genre|tag|genres)/[^/"]+/?"[^>]*>\s*([^<]{2,40})\s*</a>', content, re.IGNORECASE)
+        genres = [html_lib.unescape(urllib.parse.unquote(g)).strip() for g in genres if g.strip()]
+        genres = list(dict.fromkeys(genres))[:10]
+        if not genres: genres = ["Action"]
+
         manga_type = "Manga"
-        type_m2 = re.search(r'(?:Type|Jenis|Tipe)[^<]{0,50}?(Manhwa|Manhua|Manga)', content, re.IGNORECASE)
-        if type_m2:
-            t = type_m2.group(1).strip()
-            if t.lower() == 'manhwa': manga_type = 'Manhwa'
-            elif t.lower() == 'manhua': manga_type = 'Manhua'
-        # Rating
-        rating = 7.5
-        rating_m = re.search(r'aria-label="Rating\s*([\d\.]+)\s*dari\s*10"', content, re.IGNORECASE)
+        if 'Bendera jenis manhwa' in content or 'kr.png' in content or 'manhwa' in content.lower():
+            manga_type = "Manhwa"
+        elif 'Bendera jenis manhua' in content or 'cn.png' in content or 'manhua' in content.lower():
+            manga_type = "Manhua"
+
+        rating = 8.0
+        rating_m = re.search(r'class="[^"]*rating[^"]*"[^>]*>([\d\.]+)', content)
         if not rating_m:
-            rating_m = re.search(r'class="system-rating"[\s\S]{0,120}<span[^>]*>([\d\.]+)</span>', content)
+            rating_m = re.search(r'([\d\.]+)</span><span class="stat-label">Rating</span>', content)
+        if not rating_m:
+            rating_m = re.search(r'aria-label="Rating\s*([\d\.]+)', content)
         if rating_m:
             try: rating = float(rating_m.group(1))
             except: pass
-        # Status
-        status = ""
-        status_m = re.search(r'(?:Status)[^<]{0,30}(Ongoing|Completed|Tamat|Berlangsung|Hiatus)', content, re.IGNORECASE)
-        if status_m: status = status_m.group(1).strip()
-        # Release year
+
+        status = "Ongoing"
+        status_m = re.search(r'(?:data-status-tone|tag-status)[^>]*>(Completed|Ongoing|Tamat)', content, re.IGNORECASE)
+        if not status_m:
+            status_m = re.search(r'(?:Status)[^<]{0,30}(Ongoing|Completed|Tamat|Berlangsung|Hiatus)', content, re.IGNORECASE)
+        if status_m: status = status_m.group(1).capitalize()
+
         year_m = re.search(r'(?:Released|Rilis|Tahun|Year)[^<]{0,30}(\d{4})', content, re.IGNORECASE)
         release_year = year_m.group(1) if year_m else ""
-        # Chapters: fetch complete list via official JSON endpoint, fallback to HTML parsing
+
         chapters = []
         seen = set()
-        try:
-            ch_api_url = f"{domain}/api/manga/{slug}/chapters"
-            ch_json_str = fetch_html(ch_api_url)
-            ch_data = json.loads(ch_json_str)
-            for item in ch_data.get("chapters", []):
-                val = item.get("value")
-                if val:
-                    try:
-                        ch_num = float(val)
-                        key = int(ch_num) if ch_num.is_integer() else ch_num
-                        if key not in seen:
-                            seen.add(key)
-                            title_lbl = item.get("title") or f"Chapter {key}"
-                            chapters.append({"chapter_number": key, "title": title_lbl, "url": f"{slug}/chapter/{key}/"})
-                    except: pass
-        except Exception as e:
-            print("Error fetching chapters API:", e)
+        ch_links = re.findall(rf'href=["\'](?:https?://[^/]+)?/(?:series|manga)/{re.escape(slug)}/chapter/([^/"\'\s>]+)["\']', content)
+        for ch_raw in ch_links:
+            try:
+                v = float(ch_raw)
+                key = int(v) if v.is_integer() else v
+                if key not in seen:
+                    seen.add(key)
+                    chapters.append({
+                        "chapter_number": key,
+                        "title": f"Chapter {key}",
+                        "url": f"{slug}/chapter/{ch_raw}"
+                    })
+            except: pass
 
         if not chapters:
             ch_matches_raw = re.findall(r'href="https?://[^"]+/chapter[/|-]([\d\.]+)/?"', content, re.IGNORECASE)
@@ -252,7 +286,7 @@ def scrape_details(slug):
         return {
             "id": slug, "slug": slug, "title": title, "cover": cover,
             "synopsis": synopsis, "type": manga_type,
-            "genres": genre_matches, "status": status, "rating": rating,
+            "genres": genres, "status": status, "rating": rating,
             "rank": "", "author": author, "release_year": release_year,
             "latestChapter": latest_ch, "chapters": chapters
         }
@@ -422,24 +456,20 @@ def application(environ, start_response):
         try:
             domain = get_scraper_domain()
             try:
-                content = fetch_html(f"{domain}/")
+                content = fetch_html(f"{domain}/ranking")
             except Exception:
-                domain = "https://komikcast.app"
-                content = fetch_html(f"{domain}/")
-            # Split by article or animepost or bsx
-            if '<article' in content:
-                parts = [x for x in content.split('<article')[1:] if 'system-content-card' in x or '/manga/' in x or '/series/' in x]
-            elif '<div class="animepost">' in content:
-                parts = content.split('<div class="animepost">')[1:]
-            elif '<div class="bsx">' in content:
-                parts = content.split('<div class="bsx">')[1:]
+                content = fetch_html(f"{domain}/browse?order=popular")
+            if '<a class="comic-row"' in content:
+                parts = content.split('<a class="comic-row')[1:]
+            elif '<article' in content:
+                parts = [x for x in content.split('<article')[1:] if '/series/' in x or '/manga/' in x]
             else:
                 parts = [x for x in content.split('<article')[1:]]
             mangas = []
             seen = set()
             for x in parts:
                 card = parse_card(x)
-                if card["id"] != "unknown" and card["id"] not in seen:
+                if card and card["id"] not in seen:
                     seen.add(card["id"])
                     card["rank"] = len(mangas) + 1
                     mangas.append(card)
@@ -458,24 +488,16 @@ def application(environ, start_response):
         try:
             domain = get_scraper_domain()
             try:
-                content = fetch_html(f"{domain}/")
+                content = fetch_html(f"{domain}/updates")
             except Exception:
-                domain = "https://komikcast.app"
                 content = fetch_html(f"{domain}/")
-            if '<article' in content:
-                parts = [x for x in content.split('<article')[1:] if 'system-content-card' in x or '/manga/' in x or '/series/' in x]
-            elif '<div class="animepost">' in content:
-                parts = content.split('<div class="animepost">')[1:]
-            elif '<div class="bsx">' in content:
-                parts = content.split('<div class="bsx">')[1:]
-            else:
-                parts = [x for x in content.split('<article')[1:]]
+            parts = [x for x in content.split('<article')[1:] if '/series/' in x or '/manga/' in x]
             times = ["2 mnt lalu","15 mnt lalu","45 mnt lalu","1 jam lalu","2 jam lalu","4 jam lalu","6 jam lalu","12 jam lalu","1 hari lalu"]
             mangas = []
             seen = set()
             for x in parts:
                 card = parse_card(x)
-                if card["id"] != "unknown" and card["id"] not in seen:
+                if card and card["id"] not in seen:
                     seen.add(card["id"])
                     idx = len(mangas)
                     card["updatedAt"] = times[idx] if idx < len(times) else "Baru saja"
@@ -497,13 +519,16 @@ def application(environ, start_response):
             return json_response(start_response, [])
         try:
             domain = get_scraper_domain()
-            content = fetch_html(f"{domain}/?s={urllib.parse.quote(query)}")
-            parts = [x for x in content.split('<article')[1:] if '/manga/' in x]
+            try:
+                content = fetch_html(f"{domain}/browse?q={urllib.parse.quote(query)}")
+            except Exception:
+                content = fetch_html(f"{domain}/?s={urllib.parse.quote(query)}")
+            parts = [x for x in content.split('<article')[1:] if '/series/' in x or '/manga/' in x]
             results = []
             seen = set()
             for x in parts:
                 c = parse_card(x)
-                if c["id"] != "unknown" and c["id"] not in seen:
+                if c and c["id"] not in seen:
                     seen.add(c["id"])
                     results.append(c)
                 if len(results) >= 6:
@@ -524,27 +549,33 @@ def application(environ, start_response):
         sort = params.get('sort', [''])[0]
         try:
             domain = get_scraper_domain()
-            # Route to komikcast.app catalog (/manga/?page=N)
             query_parts_cat = []
             if page > 1:
                 query_parts_cat.append(f"page={page}")
             if manga_type and manga_type != 'all':
                 query_parts_cat.append(f"type={manga_type.lower()}")
+            if genre and genre != 'all':
+                query_parts_cat.append(f"genre={urllib.parse.quote(genre)}")
             if sort:
                 sort_map = {'rating': 'rating', 'popular': 'popular', 'alphabet': 'title'}
-                query_parts_cat.append(f"order={sort_map.get(sort, 'update')}")
+                query_parts_cat.append(f"order={sort_map.get(sort, sort)}")
             qs_cat = "&".join(query_parts_cat)
-            url = f"{domain}/manga/" + (f"?{qs_cat}" if qs_cat else "")
+            url = f"{domain}/browse" + (f"?{qs_cat}" if qs_cat else "")
             try:
                 content = fetch_html(url)
             except Exception:
-                domain = "https://komikcast.app"
                 url = f"{domain}/manga/" + (f"?{qs_cat}" if qs_cat else "")
                 content = fetch_html(url)
-            parts = [x for x in content.split('<article')[1:] if 'system-content-card' in x or '/manga/' in x]
-            data = [parse_card(p) for p in parts]
+            parts = [x for x in content.split('<article')[1:] if '/series/' in x or '/manga/' in x or 'card' in x]
+            data = []
+            seen = set()
+            for p in parts:
+                c = parse_card(p)
+                if c and c["id"] not in seen:
+                    seen.add(c["id"])
+                    data.append(c)
             last_page = 1
-            pages = re.findall(r'href="[^"]*page=(\d+)[^"]*"', content)
+            pages = re.findall(r'page=(\d+)', content)
             if pages:
                 last_page = max(map(int, pages))
             return json_response(start_response, {
@@ -579,33 +610,27 @@ def application(environ, start_response):
         if not manga_id:
             return json_response(start_response, {"error": "Missing manga"}, "400 Bad Request")
         try:
+            import html as html_lib
             domain = get_scraper_domain()
-            reader_url = f"{domain}/manga/{manga_id}/chapter/{chapter_num}"
+            reader_url = f"{domain}/series/{manga_id}/chapter/{chapter_num}"
             try:
                 content = fetch_html(reader_url)
-            except:
-                reader_url = f"{domain}/manga/{manga_id}/chapter/{chapter_num}.00"
+            except Exception:
+                reader_url = f"{domain}/manga/{manga_id}/chapter/{chapter_num}"
                 content = fetch_html(reader_url)
-            
+
             # Find all reader images
-            img_srcs = re.findall(r'<img[^>]+src=["\']([^"\']+\.(?:jpg|jpeg|png|webp))', content, re.IGNORECASE)
-            cdn_imgs = [src for src in img_srcs if 'cdnkomiku' in src or 'dondon' in src or 'chapter' in src]
+            img_srcs = re.findall(r'<img[^>]+src=["\']([^"\']+\.(?:jpg|jpeg|png|webp)[^"\']*)["\']', content, re.IGNORECASE)
+            cdn_imgs = [src for src in img_srcs if 'cdn.voratoon.com' in src or 'cdnkomiku' in src or 'dondon' in src or 'chapter' in src]
             if not cdn_imgs:
-                cdn_imgs = [src for src in img_srcs if not any(x in src for x in ['logo', 'avatar', 'icon', 'banner', 'wp-content/themes', 'gravatar'])]
-            images = [f"/api/proxy-img?url={urllib.parse.quote(src)}" for src in cdn_imgs]
+                cdn_imgs = [src for src in img_srcs if not any(x in src for x in ['logo', 'avatar', 'icon', 'banner', 'wp-content/themes', 'gravatar', 'flagcdn', 'histats'])]
+            images = [f"/api/proxy-img?url={urllib.parse.quote(html_lib.unescape(src))}" for src in cdn_imgs]
             details = scrape_details(manga_id)
             all_chapters = details["chapters"] if details else []
             manga_title = details["title"] if details else manga_id.replace('-', ' ').title()
-            payload = {
-                "manga_title": manga_title,
-                "manga_id": manga_id,
-                "chapter_title": f"Chapter {chapter_num}",
-                "chapter_number": chapter_num,
-                "images": images,
-                "prev_chapter": None,
-                "next_chapter": None,
-                "chapters": all_chapters
-            }
+
+            prev_ch = None
+            next_ch = None
             if all_chapters:
                 ch_nums = [c["chapter_number"] for c in all_chapters]
                 try:
@@ -613,10 +638,22 @@ def application(environ, start_response):
                     curr_key = int(curr) if curr.is_integer() else curr
                     if curr_key in ch_nums:
                         idx = ch_nums.index(curr_key)
-                        payload["prev_chapter"] = str(ch_nums[idx + 1]) if idx + 1 < len(ch_nums) else None
-                        payload["next_chapter"] = str(ch_nums[idx - 1]) if idx - 1 >= 0 else None
+                        prev_ch = str(ch_nums[idx + 1]) if idx + 1 < len(ch_nums) else None
+                        next_ch = str(ch_nums[idx - 1]) if idx - 1 >= 0 else None
                 except Exception:
                     pass
+
+            payload = {
+                "manga_title": manga_title,
+                "manga_id": manga_id,
+                "chapter_title": f"Chapter {chapter_num}",
+                "chapter_number": chapter_num,
+                "images": images,
+                "prev_chapter": prev_ch,
+                "next_chapter": next_ch,
+                "all_chapters": all_chapters,
+                "chapters": all_chapters
+            }
             return json_response(start_response, payload)
         except Exception as e:
             return json_response(start_response, {"error": str(e)}, "500 Internal Server Error")
@@ -629,11 +666,14 @@ def application(environ, start_response):
         if not img_url:
             return error_response(start_response, '400 Bad Request', 'Missing url')
         try:
+            import html as html_lib
+            img_url = html_lib.unescape(img_url)
+            domain = get_scraper_domain()
             req = urllib.request.Request(img_url, headers={
-                'User-Agent': 'Mozilla/5.0',
-                'Referer': get_scraper_domain() + '/'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': domain + '/'
             })
-            with urllib.request.urlopen(req, context=ctx, timeout=10) as resp:
+            with urllib.request.urlopen(req, context=ctx, timeout=15) as resp:
                 ctype = resp.headers.get('Content-Type', 'image/jpeg')
                 start_response('200 OK', [
                     ('Content-Type', ctype),
@@ -652,7 +692,7 @@ def application(environ, start_response):
             host = environ.get('HTTP_HOST', 'komivex.my.id')
             domain = get_scraper_domain()
             html_content = fetch_html(domain)
-            slugs = list(set(re.findall(r'href="https?://[^/]+/komik/([^/]+)/"', html_content)))[:30]
+            slugs = [s for s in list(dict.fromkeys(re.findall(r'href=["\'](?:https?://[^/]+)?/(?:series|komik|manga)/([^/"\'\s>]+)', html_content))) if s not in ['browse','updates','ranking','premium']][:30]
             xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
             xml += f'  <url><loc>https://{host}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n'
             xml += f'  <url><loc>https://{host}/#library</loc><changefreq>daily</changefreq><priority>0.8</priority></url>\n'
@@ -675,8 +715,8 @@ def application(environ, start_response):
         try:
             domain = get_scraper_domain()
             host = environ.get('HTTP_HOST', 'localhost')
-            html_content = fetch_html(domain)
-            slugs = list(set(re.findall(r'href="https?://[^/]+/komik/([^/]+)/"', html_content)))[:30]
+            html_content = fetch_html(f"{domain}/browse")
+            slugs = [s for s in list(dict.fromkeys(re.findall(r'href=["\'](?:https?://[^/]+)?/(?:series|komik|manga)/([^/"\'\s>]+)', html_content))) if s not in ['browse','updates','ranking','premium']][:30]
             xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
             xml += f'  <url><loc>https://{host}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n'
             for slug in slugs:
