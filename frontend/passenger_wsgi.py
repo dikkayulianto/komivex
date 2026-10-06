@@ -59,7 +59,7 @@ if os.path.exists(CONFIG_FILE):
 
 
 def get_scraper_domain():
-    return site_config.get("scraper_target_domain", "https://komikcast.app").rstrip('/')
+    return site_config.get("scraper_target_domain", "https://komikcast.info").rstrip('/')
 
 
 # ─────────────────────────────────────────────
@@ -144,7 +144,8 @@ def parse_card(part):
 
 def scrape_details(slug):
     try:
-        url = f"{get_scraper_domain()}/manga/{slug}/"
+        domain = get_scraper_domain()
+        url = f"{domain}/manga/{slug}/"
         content = fetch_html(url)
 
                 # Title

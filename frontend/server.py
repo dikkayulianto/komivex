@@ -47,7 +47,7 @@ if os.path.exists(CONFIG_FILE):
         print("Error loading config.json:", e)
 
 def get_scraper_domain():
-    return site_config.get("scraper_target_domain", "https://bacakomik.my").rstrip('/')
+    return site_config.get("scraper_target_domain", "https://komikcast.info").rstrip('/')
 
 # Bypass SSL verify for secure connections (e.g. MangaDex/CDN SSL mismatches)
 ctx = ssl.create_default_context()
