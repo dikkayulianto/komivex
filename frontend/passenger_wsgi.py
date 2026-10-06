@@ -162,15 +162,23 @@ def scrape_details(slug):
         cover = f"/api/proxy-img?url={urllib.parse.quote(cover_raw)}" if cover_raw and cover_raw.startswith('http') else "/assets/manga_cover_1.jpg"
         # Synopsis
         syn_m = re.search(r'<div[^>]+class="[^"]*(?:synopsis|sinopsis|description|entry-content)[^"]*"[^>]*>([\s\S]*?)</div>', content, re.IGNORECASE)
+        if not syn_m:
+            syn_m = re.search(r'<meta\s+name="description"\s+content="([^"]+)"', content, re.IGNORECASE)
         synopsis = re.sub(r'<[^>]+>', '', syn_m.group(1)).strip() if syn_m else "Tidak ada sinopsis."
         synopsis = re.sub(r'\s+', ' ', synopsis)
         # Author
         author = "Unknown"
-        auth_block = re.search(r'(?:Author|Pengarang|Penulis)[^<]{0,30}((?:<[^>]+>[^<]*){1,15})', content, re.IGNORECASE)
-        if auth_block:
-            links = re.findall(r'<a[^>]*>([^<]+)</a>', auth_block.group(1))
-            if links:
-                author = ', '.join(a.strip() for a in links if a.strip())
+        m_author = re.search(r'"author":\{"@type":"Person","name":"([^"]+)"\}', content)
+        if m_author:
+            author = m_author.group(1).strip()
+        else:
+            auth_block = re.search(r'(?:Author|Pengarang|Penulis)[^<]{0,40}((?:<[^>]+>[^<]*){1,15})', content, re.IGNORECASE)
+            if auth_block:
+                links = re.findall(r'<a[^>]*>([^<]+)</a>', auth_block.group(1))
+                if links:
+                    author = ', '.join(a.strip() for a in links if a.strip())
+                else:
+                    author = re.sub(r'<[^>]+>', '', auth_block.group(1)).strip() or "Unknown"
         # Genres
         genre_matches = re.findall(r'href="[^"]+/(?:genre|tag|genres)/[^/"]+/?"[^>]*>\s*([^<]{2,40})\s*</a>', content, re.IGNORECASE)
         if not genre_matches: genre_matches = ["Action"]
@@ -197,8 +205,8 @@ def scrape_details(slug):
         # Release year
         year_m = re.search(r'(?:Released|Rilis|Tahun|Year)[^<]{0,30}(\d{4})', content, re.IGNORECASE)
         release_year = year_m.group(1) if year_m else ""
-        # Chapters
-        ch_matches_raw = re.findall(r'href="https?://[^"]+/chapter[-/]([\d\.]+)/?">', content, re.IGNORECASE)
+        # Chapters: regex matching /chapter/N.N or /chapter-N.N
+        ch_matches_raw = re.findall(r'href="https?://[^"]+/chapter[/|-]([\d\.]+)/?"', content, re.IGNORECASE)
         chapters = []
         seen = set()
         for num_str in ch_matches_raw:
@@ -207,7 +215,7 @@ def scrape_details(slug):
                 key = int(ch_num) if ch_num.is_integer() else ch_num
                 if key not in seen:
                     seen.add(key)
-                    chapters.append({"chapter_number": key, "title": f"Chapter {key}", "url": f"{slug}/chapter-{key}/"})
+                    chapters.append({"chapter_number": key, "title": f"Chapter {key}", "url": f"{slug}/chapter/{key}/"})
             except: pass
         chapters.sort(key=lambda x: x["chapter_number"], reverse=True)
         latest_ch = chapters[0]["chapter_number"] if chapters else 1
@@ -463,25 +471,25 @@ def application(environ, start_response):
         sort = params.get('sort', [''])[0]
         try:
             domain = get_scraper_domain()
-            query_parts = []
+            # Route to komikcast.app catalog (/manga/?page=N)
+            query_parts_cat = []
+            if page > 1:
+                query_parts_cat.append(f"page={page}")
             if manga_type and manga_type != 'all':
-                query_parts.append(f"type={manga_type.lower()}")
+                query_parts_cat.append(f"type={manga_type.lower()}")
             if sort:
-                sort_map = {'rating': 'popular', 'popular': 'popular', 'alphabet': 'title'}
-                query_parts.append(f"order={sort_map.get(sort, 'update')}")
-            qs = "&".join(query_parts)
-            
-            # Route to komikcast.app catalog
-            url = f"{domain}/daftar-komik/page/{page}/" if page > 1 else f"{domain}/daftar-komik/"
+                sort_map = {'rating': 'rating', 'popular': 'popular', 'alphabet': 'title'}
+                query_parts_cat.append(f"order={sort_map.get(sort, 'update')}")
+            qs_cat = "&".join(query_parts_cat)
+            url = f"{domain}/manga/" + (f"?{qs_cat}" if qs_cat else "")
+
             content = fetch_html(url)
             parts = [x for x in content.split('<article')[1:] if 'system-content-card' in x or '/manga/' in x]
             data = [parse_card(p) for p in parts]
             last_page = 1
-            pag = re.search(r'<div class="pagination">([\s\S]*?)</div>', content)
-            if pag:
-                pages = re.findall(r'page/(\d+)/', pag.group(1))
-                if pages:
-                    last_page = max(map(int, pages))
+            pages = re.findall(r'href="[^"]*page=(\d+)[^"]*"', content)
+            if pages:
+                last_page = max(map(int, pages))
             return json_response(start_response, {
                 "current_page": page,
                 "last_page": last_page,
