@@ -88,13 +88,15 @@ def fetch_html(url):
 # ─────────────────────────────────────────────
 def parse_card(part):
     """Parse a manga card from komikcast.app homepage HTML block."""
-    slug_match = re.search(r'href="https?://[^/]+/manga/([^/"]+)/?"', part)
-    title_match = re.search(r'<h[23][^>]*>\s*([^<]{2,120})\s*</h[23]>', part)
+    slug_match = re.search(r'href="https?://[^/]+/(?:manga|komik|series)/([^/"]+)/?"', part)
+    title_match = re.search(r'<h[234][^>]*>\s*([^<]{2,120})\s*</h[234]>', part)
     if not title_match:
-        title_match = re.search(r'title="([^"]{2,120})"', part)
+        title_match = re.search(r'title="(?:Komik|Manga)?\s*([^"]{2,120})"', part)
     cover_match = re.search(r'data-src="(https?://[^"]+)"', part)
     if not cover_match:
         cover_match = re.search(r'data-lazy-src="(https?://[^"]+)"', part)
+    if not cover_match:
+        cover_match = re.search(r'<noscript><img[^>]+src="([^"]+)"', part)
     if not cover_match:
         cover_match = re.search(r'<img[^>]+src="(https?://[^"]+\.(?:jpg|png|webp)[^"]*)"', part)
     cover = "/assets/manga_cover_1.jpg"
@@ -145,8 +147,12 @@ def parse_card(part):
 def scrape_details(slug):
     try:
         domain = get_scraper_domain()
-        url = f"{domain}/manga/{slug}/"
-        content = fetch_html(url)
+        try:
+            url = f"{domain}/manga/{slug}/"
+            content = fetch_html(url)
+        except Exception:
+            url = f"{domain}/komik/{slug}/"
+            content = fetch_html(url)
 
                 # Title
         title_m = re.search(r'<h1[^>]*>\s*([\s\S]{2,150}?)\s*</h1>', content)
@@ -413,7 +419,15 @@ def application(environ, start_response):
         try:
             domain = get_scraper_domain()
             content = fetch_html(f"{domain}/")
-            parts = [x for x in content.split('<article')[1:] if 'system-content-card' in x or '/manga/' in x]
+            # Split by article or animepost or bsx
+            if '<article' in content:
+                parts = [x for x in content.split('<article')[1:] if 'system-content-card' in x or '/manga/' in x or '/series/' in x]
+            elif '<div class="animepost">' in content:
+                parts = content.split('<div class="animepost">')[1:]
+            elif '<div class="bsx">' in content:
+                parts = content.split('<div class="bsx">')[1:]
+            else:
+                parts = [x for x in content.split('<article')[1:]]
             mangas = []
             seen = set()
             for x in parts:
@@ -437,7 +451,14 @@ def application(environ, start_response):
         try:
             domain = get_scraper_domain()
             content = fetch_html(f"{domain}/")
-            parts = [x for x in content.split('<article')[1:] if 'system-content-card' in x or '/manga/' in x]
+            if '<article' in content:
+                parts = [x for x in content.split('<article')[1:] if 'system-content-card' in x or '/manga/' in x or '/series/' in x]
+            elif '<div class="animepost">' in content:
+                parts = content.split('<div class="animepost">')[1:]
+            elif '<div class="bsx">' in content:
+                parts = content.split('<div class="bsx">')[1:]
+            else:
+                parts = [x for x in content.split('<article')[1:]]
             times = ["2 mnt lalu","15 mnt lalu","45 mnt lalu","1 jam lalu","2 jam lalu","4 jam lalu","6 jam lalu","12 jam lalu","1 hari lalu"]
             mangas = []
             seen = set()
