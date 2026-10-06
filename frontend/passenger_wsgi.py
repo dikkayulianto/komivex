@@ -205,18 +205,38 @@ def scrape_details(slug):
         # Release year
         year_m = re.search(r'(?:Released|Rilis|Tahun|Year)[^<]{0,30}(\d{4})', content, re.IGNORECASE)
         release_year = year_m.group(1) if year_m else ""
-        # Chapters: regex matching /chapter/N.N or /chapter-N.N
-        ch_matches_raw = re.findall(r'href="https?://[^"]+/chapter[/|-]([\d\.]+)/?"', content, re.IGNORECASE)
+        # Chapters: fetch complete list via official JSON endpoint, fallback to HTML parsing
         chapters = []
         seen = set()
-        for num_str in ch_matches_raw:
-            try:
-                ch_num = float(num_str)
-                key = int(ch_num) if ch_num.is_integer() else ch_num
-                if key not in seen:
-                    seen.add(key)
-                    chapters.append({"chapter_number": key, "title": f"Chapter {key}", "url": f"{slug}/chapter/{key}/"})
-            except: pass
+        try:
+            ch_api_url = f"{domain}/api/manga/{slug}/chapters"
+            ch_json_str = fetch_html(ch_api_url)
+            ch_data = json.loads(ch_json_str)
+            for item in ch_data.get("chapters", []):
+                val = item.get("value")
+                if val:
+                    try:
+                        ch_num = float(val)
+                        key = int(ch_num) if ch_num.is_integer() else ch_num
+                        if key not in seen:
+                            seen.add(key)
+                            title_lbl = item.get("title") or f"Chapter {key}"
+                            chapters.append({"chapter_number": key, "title": title_lbl, "url": f"{slug}/chapter/{key}/"})
+                    except: pass
+        except Exception as e:
+            print("Error fetching chapters API:", e)
+
+        if not chapters:
+            ch_matches_raw = re.findall(r'href="https?://[^"]+/chapter[/|-]([\d\.]+)/?"', content, re.IGNORECASE)
+            for num_str in ch_matches_raw:
+                try:
+                    ch_num = float(num_str)
+                    key = int(ch_num) if ch_num.is_integer() else ch_num
+                    if key not in seen:
+                        seen.add(key)
+                        chapters.append({"chapter_number": key, "title": f"Chapter {key}", "url": f"{slug}/chapter/{key}/"})
+                except: pass
+
         chapters.sort(key=lambda x: x["chapter_number"], reverse=True)
         latest_ch = chapters[0]["chapter_number"] if chapters else 1
         return {
