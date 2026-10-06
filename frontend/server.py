@@ -496,13 +496,21 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
                 query_parts = []
                 if page > 1:
                     query_parts.append(f"page={page}")
-                if manga_type and manga_type != 'all':
-                    query_parts.append(f"type={manga_type.lower()}")
-                if genre and genre != 'all':
+                if manga_type and manga_type.lower() not in ('all', 'semua'):
+                    query_parts.append(f"format={manga_type.lower()}")
+                if genre and genre.lower() not in ('all', 'semua'):
                     query_parts.append(f"genre={urllib.parse.quote(genre)}")
-                if sort:
-                    sort_map = {'rating': 'rating', 'popular': 'popular', 'alphabet': 'title'}
-                    query_parts.append(f"order={sort_map.get(sort, sort)}")
+                if sort and sort.lower() not in ('all', 'default'):
+                    sort_map = {
+                        'rating': 'rating',
+                        'rank': 'popular',
+                        'popular': 'popular',
+                        'alphabet': 'az',
+                        'title': 'az',
+                        'update': 'latest',
+                        'latest': 'latest'
+                    }
+                    query_parts.append(f"sort={sort_map.get(sort.lower(), 'rating')}")
                     
                 query_str = "&".join(query_parts)
                 url = f"{domain}/browse" + (f"?{query_str}" if query_str else "")
@@ -515,6 +523,10 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
                     card = parse_card(p)
                     if card and card["id"] not in seen_slugs:
                         seen_slugs.add(card["id"])
+                        if manga_type and manga_type.lower() not in ('all', 'semua'):
+                            card["type"] = manga_type.capitalize()
+                        if genre and genre.lower() not in ('all', 'semua'):
+                            card["genres"] = [genre.capitalize()]
                         paginated_data.append(card)
                     
                 # Detect max pages

@@ -552,13 +552,21 @@ def application(environ, start_response):
             query_parts_cat = []
             if page > 1:
                 query_parts_cat.append(f"page={page}")
-            if manga_type and manga_type != 'all':
-                query_parts_cat.append(f"type={manga_type.lower()}")
-            if genre and genre != 'all':
+            if manga_type and manga_type.lower() not in ('all', 'semua'):
+                query_parts_cat.append(f"format={manga_type.lower()}")
+            if genre and genre.lower() not in ('all', 'semua'):
                 query_parts_cat.append(f"genre={urllib.parse.quote(genre)}")
-            if sort:
-                sort_map = {'rating': 'rating', 'popular': 'popular', 'alphabet': 'title'}
-                query_parts_cat.append(f"order={sort_map.get(sort, sort)}")
+            if sort and sort.lower() not in ('all', 'default'):
+                sort_map = {
+                    'rating': 'rating',
+                    'rank': 'popular',
+                    'popular': 'popular',
+                    'alphabet': 'az',
+                    'title': 'az',
+                    'update': 'latest',
+                    'latest': 'latest'
+                }
+                query_parts_cat.append(f"sort={sort_map.get(sort.lower(), 'rating')}")
             qs_cat = "&".join(query_parts_cat)
             url = f"{domain}/browse" + (f"?{qs_cat}" if qs_cat else "")
             try:
@@ -573,6 +581,10 @@ def application(environ, start_response):
                 c = parse_card(p)
                 if c and c["id"] not in seen:
                     seen.add(c["id"])
+                    if manga_type and manga_type.lower() not in ('all', 'semua'):
+                        c["type"] = manga_type.capitalize()
+                    if genre and genre.lower() not in ('all', 'semua'):
+                        c["genres"] = [genre.capitalize()]
                     data.append(c)
             last_page = 1
             pages = re.findall(r'page=(\d+)', content)
