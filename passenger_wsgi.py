@@ -471,16 +471,10 @@ def application(environ, start_response):
                 query_parts.append(f"order={sort_map.get(sort, 'update')}")
             qs = "&".join(query_parts)
             
-            # Use path-based routing for genre filter on bacakomik.my
-            if genre and genre != 'all':
-                url = f"{domain}/genres/{genre.lower()}/page/{page}/"
-            else:
-                url = f"{domain}/daftar-komik/page/{page}/"
-                
-            if qs:
-                url += f"?{qs}"
+            # Route to komikcast.app catalog
+            url = f"{domain}/daftar-komik/page/{page}/" if page > 1 else f"{domain}/daftar-komik/"
             content = fetch_html(url)
-            parts = content.split('<div class="animepost">')[1:]
+            parts = [x for x in content.split('<article')[1:] if 'system-content-card' in x or '/manga/' in x]
             data = [parse_card(p) for p in parts]
             last_page = 1
             pag = re.search(r'<div class="pagination">([\s\S]*?)</div>', content)
@@ -529,7 +523,7 @@ def application(environ, start_response):
                 content = fetch_html(reader_url)
             
             # Find all reader images
-            img_srcs = re.findall(r'<img[^>]+src=["'](https?://[^"']+\.(?:jpg|jpeg|png|webp))["']', content)
+            img_srcs = re.findall(r'<img[^>]+src=["\']([^"\']+\.(?:jpg|jpeg|png|webp))', content, re.IGNORECASE)
             cdn_imgs = [src for src in img_srcs if 'cdnkomiku' in src or 'dondon' in src or 'chapter' in src]
             if not cdn_imgs:
                 cdn_imgs = [src for src in img_srcs if not any(x in src for x in ['logo', 'avatar', 'icon', 'banner', 'wp-content/themes', 'gravatar'])]
