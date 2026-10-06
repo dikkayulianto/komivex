@@ -59,7 +59,11 @@ if os.path.exists(CONFIG_FILE):
 
 
 def get_scraper_domain():
-    return site_config.get("scraper_target_domain", "https://komikcast.info").rstrip('/')
+    domain = site_config.get("scraper_target_domain", "").strip().rstrip('/')
+    # If empty or points to broken/blocked domain, fallback to active komikcast.app
+    if not domain or "bacakomik" in domain or "shinigami" in domain:
+        domain = "https://komikcast.app"
+    return domain
 
 
 # ─────────────────────────────────────────────
@@ -418,7 +422,11 @@ def application(environ, start_response):
     if method == 'GET' and path == '/api/popular':
         try:
             domain = get_scraper_domain()
-            content = fetch_html(f"{domain}/")
+            try:
+                content = fetch_html(f"{domain}/")
+            except Exception:
+                domain = "https://komikcast.app"
+                content = fetch_html(f"{domain}/")
             # Split by article or animepost or bsx
             if '<article' in content:
                 parts = [x for x in content.split('<article')[1:] if 'system-content-card' in x or '/manga/' in x or '/series/' in x]
@@ -450,7 +458,11 @@ def application(environ, start_response):
     if method == 'GET' and path == '/api/updates':
         try:
             domain = get_scraper_domain()
-            content = fetch_html(f"{domain}/")
+            try:
+                content = fetch_html(f"{domain}/")
+            except Exception:
+                domain = "https://komikcast.app"
+                content = fetch_html(f"{domain}/")
             if '<article' in content:
                 parts = [x for x in content.split('<article')[1:] if 'system-content-card' in x or '/manga/' in x or '/series/' in x]
             elif '<div class="animepost">' in content:
@@ -524,8 +536,12 @@ def application(environ, start_response):
                 query_parts_cat.append(f"order={sort_map.get(sort, 'update')}")
             qs_cat = "&".join(query_parts_cat)
             url = f"{domain}/manga/" + (f"?{qs_cat}" if qs_cat else "")
-
-            content = fetch_html(url)
+            try:
+                content = fetch_html(url)
+            except Exception:
+                domain = "https://komikcast.app"
+                url = f"{domain}/manga/" + (f"?{qs_cat}" if qs_cat else "")
+                content = fetch_html(url)
             parts = [x for x in content.split('<article')[1:] if 'system-content-card' in x or '/manga/' in x]
             data = [parse_card(p) for p in parts]
             last_page = 1
