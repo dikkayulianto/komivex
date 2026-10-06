@@ -60,8 +60,7 @@ if os.path.exists(CONFIG_FILE):
 
 def get_scraper_domain():
     domain = site_config.get("scraper_target_domain", "").strip().rstrip('/')
-    # If empty or points to broken/blocked domain, fallback to active komikcast.app
-    if not domain or "bacakomik" in domain or "shinigami" in domain:
+    if not domain or "bacakomik" in domain or "shinigami" in domain or "komikcast.info" in domain:
         domain = "https://komikcast.app"
     return domain
 
