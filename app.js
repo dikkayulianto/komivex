@@ -1446,7 +1446,7 @@ async function openChapterReader(mangaId, chapterNumber) {
             const historyEntry = {
                 mangaId: mangaId,
                 mangaTitle: data.manga_title || mangaId.replace('-', ' ').toUpperCase(),
-                cover: data.images && data.images[0] ? data.images[0] : (mangaDetailsCache[mangaId]?.cover || "/assets/manga_cover_1.jpg"),
+                cover: data.images && data.images[0] ? data.images[0] : ((mangaDetailsCache[mangaId] && mangaDetailsCache[mangaId].cover) || "/assets/manga_cover_1.jpg"),
                 chapterNumber: currentChapterNumberForReader,
                 timestamp: new Date().toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
             };
