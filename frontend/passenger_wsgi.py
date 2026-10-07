@@ -112,16 +112,28 @@ def parse_card(part, default_rank=99):
     if not cover_match:
         cover_match = re.search(r'data-src=["\']([^"\']+)["\']', clean_part)
     if not cover_match:
-        cover_match = re.search(r'<img[^>]+src=["\']([^"\']+\.(?:jpg|png|webp)[^"\']*)["\']', clean_part)
+        cover_match = re.search(r'data-lazy-src=["\']([^"\']+)["\']', clean_part)
+    if not cover_match:
+        cover_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', clean_part)
 
     cover = "/assets/manga_cover_1.jpg"
     if cover_match:
-        c_url = cover_match.group(1).strip()
+        c_url = html_lib.unescape(cover_match.group(1).strip())
         domain = get_scraper_domain()
-        if c_url.startswith('/api/cover'):
-            c_url = f"{domain}{c_url}"
-        elif c_url.startswith('//'):
+
+        # Unwrap Voratoon resizer /api/cover?src=... to direct S3/CDN cover
+        if '/api/cover' in c_url and 'src=' in c_url:
+            parsed_src = re.search(r'[?&]src=([^&]+)', c_url)
+            if parsed_src:
+                unquoted_src = urllib.parse.unquote(parsed_src.group(1))
+                if unquoted_src.startswith('http'):
+                    c_url = unquoted_src
+
+        if c_url.startswith('//'):
             c_url = f"https:{c_url}"
+        elif c_url.startswith('/'):
+            c_url = f"{domain}{c_url}"
+
         if c_url.startswith('http'):
             cover = f"/api/proxy-img?url={urllib.parse.quote(c_url)}"
 
@@ -190,10 +202,21 @@ def scrape_details(slug):
         cover = "/assets/manga_cover_1.jpg"
         if cover_match:
             cover_raw = html_lib.unescape(cover_match.group(1).strip())
-            if cover_raw.startswith('/api/cover'):
-                cover_raw = f"{domain}{cover_raw}"
-            elif cover_raw.startswith('//'):
+            domain = get_scraper_domain()
+
+            # Unwrap Voratoon resizer /api/cover?src=... to direct S3/CDN cover
+            if '/api/cover' in cover_raw and 'src=' in cover_raw:
+                parsed_src = re.search(r'[?&]src=([^&]+)', cover_raw)
+                if parsed_src:
+                    unquoted_src = urllib.parse.unquote(parsed_src.group(1))
+                    if unquoted_src.startswith('http'):
+                        cover_raw = unquoted_src
+
+            if cover_raw.startswith('//'):
                 cover_raw = 'https:' + cover_raw
+            elif cover_raw.startswith('/'):
+                cover_raw = f"{domain}{cover_raw}"
+
             if cover_raw.startswith('http'):
                 cover = f"/api/proxy-img?url={urllib.parse.quote(cover_raw)}"
 
@@ -681,6 +704,20 @@ def application(environ, start_response):
             import html as html_lib
             img_url = html_lib.unescape(img_url)
             domain = get_scraper_domain()
+
+            # Unwrap Voratoon resizer /api/cover?src=... to direct S3/CDN cover
+            if '/api/cover' in img_url and 'src=' in img_url:
+                parsed_src = re.search(r'[?&]src=([^&]+)', img_url)
+                if parsed_src:
+                    unquoted_src = urllib.parse.unquote(parsed_src.group(1))
+                    if unquoted_src.startswith('http'):
+                        img_url = unquoted_src
+
+            if img_url.startswith('//'):
+                img_url = 'https:' + img_url
+            elif img_url.startswith('/'):
+                img_url = f"{domain}{img_url}"
+
             req = urllib.request.Request(img_url, headers={
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Referer': domain + '/'
