@@ -32,7 +32,7 @@ DEFAULT_CONFIG = {
     "meta_title": "Komivex - Baca Manga Terpopuler",
     "meta_description": "Platform baca komik (Manga, Manhua, Manhwa) terpopuler dan terlengkap gratis bahasa Indonesia.",
     "verification_code": "",
-    "scraper_target_domain": "https://v6.voratoon.com",
+    "scraper_target_domain": "https://v7.voratoon.com",
     "custom_ad_codes": {
         "head": "",
         "body": "",
@@ -60,8 +60,8 @@ if os.path.exists(CONFIG_FILE):
 
 def get_scraper_domain():
     domain = site_config.get("scraper_target_domain", "").strip().rstrip('/')
-    if not domain or any(x in domain for x in ["bacakomik", "shinigami", "komikcast.info"]):
-        domain = "https://v6.voratoon.com"
+    if not domain or any(x in domain for x in ["bacakomik", "shinigami", "komikcast.info", "v6.voratoon"]):
+        domain = "https://v7.voratoon.com"
     return domain
 
 
@@ -83,6 +83,18 @@ HEADERS = {
 def fetch_html(url):
     req = urllib.request.Request(url, headers=HEADERS)
     with urllib.request.urlopen(req, context=ctx, timeout=15) as res:
+        final_url = res.geturl()
+        orig_parsed = urllib.parse.urlparse(url)
+        final_parsed = urllib.parse.urlparse(final_url)
+        # If redirected and query params were dropped by remote server, re-request with query params
+        if orig_parsed.query and not final_parsed.query:
+            new_url = urllib.parse.urlunparse((
+                final_parsed.scheme, final_parsed.netloc, final_parsed.path,
+                final_parsed.params, orig_parsed.query, final_parsed.fragment
+            ))
+            req2 = urllib.request.Request(new_url, headers=HEADERS)
+            with urllib.request.urlopen(req2, context=ctx, timeout=15) as res2:
+                return res2.read().decode('utf-8', errors='ignore')
         return res.read().decode('utf-8', errors='ignore')
 
 
