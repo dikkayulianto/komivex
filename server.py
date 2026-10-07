@@ -349,29 +349,47 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
             return
 
 
-        # Serve sitemap.xml dynamically
-        elif self.path == '/sitemap.xml':
+        # Serve robots.txt
+        elif self.path == '/robots.txt':
+            content = "User-agent: *\nAllow: /\nDisallow: /admin.html\nDisallow: /api/admin/\nDisallow: /api/comments/delete\n\nSitemap: https://komivex.my.id/sitemap.xml\n"
+            if os.path.exists("robots.txt"):
+                try:
+                    with open("robots.txt", "r", encoding="utf-8") as rf:
+                        content = rf.read()
+                except Exception:
+                    pass
             self.send_response(200)
-            self.send_header('Content-Type', 'application/xml')
+            self.send_header('Content-Type', 'text/plain; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
-            
-            host = self.headers.get('Host', 'komivex.my.id')
-            manga_slugs = []
-            try:
-                html_content = fetch_html(get_scraper_domain())
-                manga_slugs = re.findall(r'href="https?://[^/]+/komik/([^/]+)/"', html_content)
-                manga_slugs = list(set(manga_slugs))[:30]
-            except Exception as se:
-                print("Error fetching sitemap manga list:", se)
+            self.wfile.write(content.encode('utf-8'))
+            return
 
+        # Serve sitemap.xml
+        elif self.path == '/sitemap.xml':
+            if os.path.exists("sitemap.xml"):
+                try:
+                    with open("sitemap.xml", "r", encoding="utf-8") as sf:
+                        xml = sf.read()
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/xml; charset=utf-8')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(xml.encode('utf-8'))
+                    return
+                except Exception as e:
+                    print("Error reading static sitemap:", e)
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/xml; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            host = self.headers.get('Host', 'komivex.my.id')
             xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
             xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
             xml += f'  <url>\n    <loc>https://{host}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n'
-            xml += f'  <url>\n    <loc>https://{host}/#library</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
-            xml += f'  <url>\n    <loc>https://{host}/#manga</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
-            for slug in manga_slugs:
-                xml += f'  <url>\n    <loc>https://{host}/#manga-{slug}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>\n'
+            xml += f'  <url>\n    <loc>https://{host}/manga.html</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.9</priority>\n  </url>\n'
+            xml += f'  <url>\n    <loc>https://{host}/library.html</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>\n'
             xml += '</urlset>'
             self.wfile.write(xml.encode('utf-8'))
             return
@@ -812,22 +830,20 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
         # API: Generate sitemap.xml
         elif self.path == '/api/generate-sitemap':
             try:
-                host = self.headers.get('Host', f'localhost:{PORT}')
-                manga_slugs = []
-                try:
-                    html_content = fetch_html(get_scraper_domain())
-                    manga_slugs = re.findall(r'href="https?://[^/]+/komik/([^/]+)/"', html_content)
-                    manga_slugs = list(set(manga_slugs))[:30]
-                except Exception as se:
-                    print("Error fetching sitemap manga list:", se)
+                if os.path.exists("sitemap.xml"):
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"status": "success", "message": "Sitemap.xml sudah aktif dan valid!"}).encode('utf-8'))
+                    return
 
+                host = self.headers.get('Host', 'komivex.my.id')
                 xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
                 xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
                 xml += f'  <url>\n    <loc>https://{host}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n'
-                xml += f'  <url>\n    <loc>https://{host}/#library</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
-                xml += f'  <url>\n    <loc>https://{host}/#manga</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
-                for slug in manga_slugs:
-                    xml += f'  <url>\n    <loc>https://{host}/#manga-{slug}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>\n'
+                xml += f'  <url>\n    <loc>https://{host}/manga.html</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.9</priority>\n  </url>\n'
+                xml += f'  <url>\n    <loc>https://{host}/library.html</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>\n'
                 xml += '</urlset>'
 
                 with open("sitemap.xml", "w", encoding="utf-8") as sf:

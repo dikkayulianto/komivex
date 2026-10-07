@@ -697,23 +697,43 @@ def application(environ, start_response):
             return error_response(start_response, '500 Internal Server Error', str(e))
 
     # ──────────────────────────
+    # GET: /robots.txt
+    # ──────────────────────────
+    if method == 'GET' and path == '/robots.txt':
+        robots_file = os.path.join(BASE_DIR, "robots.txt")
+        if os.path.exists(robots_file):
+            with open(robots_file, "r", encoding="utf-8") as rf:
+                content = rf.read()
+        else:
+            content = "User-agent: *\nAllow: /\nDisallow: /admin.html\nDisallow: /api/admin/\nDisallow: /api/comments/delete\n\nSitemap: https://komivex.my.id/sitemap.xml\n"
+        start_response('200 OK', [
+            ('Content-Type', 'text/plain; charset=utf-8'),
+            ('Access-Control-Allow-Origin', '*'),
+        ])
+        return [content.encode('utf-8')]
+
+    # ──────────────────────────
     # GET: /sitemap.xml
     # ──────────────────────────
     if method == 'GET' and path == '/sitemap.xml':
+        sitemap_file = os.path.join(BASE_DIR, "sitemap.xml")
+        if os.path.exists(sitemap_file):
+            with open(sitemap_file, "r", encoding="utf-8") as sf:
+                xml_content = sf.read()
+            start_response('200 OK', [
+                ('Content-Type', 'application/xml; charset=utf-8'),
+                ('Access-Control-Allow-Origin', '*'),
+            ])
+            return [xml_content.encode('utf-8')]
         try:
             host = environ.get('HTTP_HOST', 'komivex.my.id')
-            domain = get_scraper_domain()
-            html_content = fetch_html(domain)
-            slugs = [s for s in list(dict.fromkeys(re.findall(r'href=["\'](?:https?://[^/]+)?/(?:series|komik|manga)/([^/"\'\s>]+)', html_content))) if s not in ['browse','updates','ranking','premium']][:30]
             xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
             xml += f'  <url><loc>https://{host}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n'
-            xml += f'  <url><loc>https://{host}/#library</loc><changefreq>daily</changefreq><priority>0.8</priority></url>\n'
-            xml += f'  <url><loc>https://{host}/#manga</loc><changefreq>daily</changefreq><priority>0.8</priority></url>\n'
-            for slug in slugs:
-                xml += f'  <url><loc>https://{host}/#manga-{slug}</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>\n'
+            xml += f'  <url><loc>https://{host}/manga.html</loc><changefreq>daily</changefreq><priority>0.9</priority></url>\n'
+            xml += f'  <url><loc>https://{host}/library.html</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>\n'
             xml += '</urlset>'
             start_response('200 OK', [
-                ('Content-Type', 'application/xml'),
+                ('Content-Type', 'application/xml; charset=utf-8'),
                 ('Access-Control-Allow-Origin', '*'),
             ])
             return [xml.encode('utf-8')]
@@ -725,16 +745,16 @@ def application(environ, start_response):
     # ──────────────────────────
     if method == 'POST' and path == '/api/generate-sitemap':
         try:
-            domain = get_scraper_domain()
-            host = environ.get('HTTP_HOST', 'localhost')
-            html_content = fetch_html(f"{domain}/browse")
-            slugs = [s for s in list(dict.fromkeys(re.findall(r'href=["\'](?:https?://[^/]+)?/(?:series|komik|manga)/([^/"\'\s>]+)', html_content))) if s not in ['browse','updates','ranking','premium']][:30]
+            host = environ.get('HTTP_HOST', 'komivex.my.id')
+            sitemap_file = os.path.join(BASE_DIR, "sitemap.xml")
+            if os.path.exists(sitemap_file):
+                return json_response(start_response, {"status": "success", "message": "Sitemap.xml sudah aktif dan valid!"})
             xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
             xml += f'  <url><loc>https://{host}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n'
-            for slug in slugs:
-                xml += f'  <url><loc>https://{host}/#manga-{slug}</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>\n'
+            xml += f'  <url><loc>https://{host}/manga.html</loc><changefreq>daily</changefreq><priority>0.9</priority></url>\n'
+            xml += f'  <url><loc>https://{host}/library.html</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>\n'
             xml += '</urlset>'
-            with open(os.path.join(BASE_DIR, "sitemap.xml"), "w", encoding="utf-8") as sf:
+            with open(sitemap_file, "w", encoding="utf-8") as sf:
                 sf.write(xml)
             return json_response(start_response, {"status": "success", "message": "Sitemap.xml berhasil di-generate!"})
         except Exception as e:
