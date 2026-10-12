@@ -823,6 +823,29 @@ def application(environ, start_response):
         local_path = 'index.html'
 
     full_path = os.path.join(BASE_DIR, local_path)
+
+    # Auto-repair corrupt 0-byte files on disk if backup exists
+    if os.path.isfile(full_path) and os.path.getsize(full_path) == 0:
+        alt_src = os.path.join(BASE_DIR, 'frontend', local_path)
+        idx_src = os.path.join(BASE_DIR, 'index.html')
+        repair_src = alt_src if (os.path.isfile(alt_src) and os.path.getsize(alt_src) > 0) else (idx_src if local_path.endswith('.html') else None)
+        if repair_src and os.path.isfile(repair_src) and os.path.getsize(repair_src) > 0:
+            try:
+                import shutil
+                shutil.copyfile(repair_src, full_path)
+            except Exception:
+                pass
+
+    # Resilient fallback if file is missing or still 0 bytes
+    if not os.path.isfile(full_path) or os.path.getsize(full_path) == 0:
+        alt_path = os.path.join(BASE_DIR, 'frontend', local_path)
+        if os.path.isfile(alt_path) and os.path.getsize(alt_path) > 0:
+            full_path = alt_path
+        elif local_path.endswith('.html'):
+            idx_path = os.path.join(BASE_DIR, 'index.html')
+            if os.path.isfile(idx_path) and os.path.getsize(idx_path) > 0:
+                full_path = idx_path
+
     if os.path.isfile(full_path):
         ctype, _ = mimetypes.guess_type(full_path)
         if not ctype:
