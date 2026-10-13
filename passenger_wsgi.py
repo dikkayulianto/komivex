@@ -32,7 +32,7 @@ DEFAULT_CONFIG = {
     "meta_title": "Komivex - Baca Manga Terpopuler",
     "meta_description": "Platform baca komik (Manga, Manhua, Manhwa) terpopuler dan terlengkap gratis bahasa Indonesia.",
     "verification_code": "",
-    "scraper_target_domain": "https://v7.voratoon.com",
+    "scraper_target_domain": "https://v8.voratoon.com",
     "custom_ad_codes": {
         "head": "",
         "body": "",
@@ -60,8 +60,8 @@ if os.path.exists(CONFIG_FILE):
 
 def get_scraper_domain():
     domain = site_config.get("scraper_target_domain", "").strip().rstrip('/')
-    if not domain or any(x in domain for x in ["bacakomik", "shinigami", "komikcast.info", "v6.voratoon"]):
-        domain = "https://v7.voratoon.com"
+    if not domain or any(x in domain for x in ["bacakomik", "shinigami", "komikcast.info", "v6.voratoon", "v7.voratoon"]):
+        domain = "https://v8.voratoon.com"
     return domain
 
 
@@ -589,8 +589,18 @@ def application(environ, start_response):
                 query_parts_cat.append(f"page={page}")
             if manga_type and manga_type.lower() not in ('all', 'semua'):
                 query_parts_cat.append(f"format={manga_type.lower()}")
+            norm_genre = ""
             if genre and genre.lower() not in ('all', 'semua'):
-                query_parts_cat.append(f"genre={urllib.parse.quote(genre)}")
+                norm_genre = genre.strip()
+                if norm_genre.lower() == 'slice of life':
+                    norm_genre = 'Slice of Life'
+                elif norm_genre.lower() == 'sci-fi':
+                    norm_genre = 'Sci-Fi'
+                elif norm_genre.lower() == 'martial arts':
+                    norm_genre = 'Martial Arts'
+                else:
+                    norm_genre = norm_genre.title()
+                query_parts_cat.append(f"genre={urllib.parse.quote(norm_genre)}")
             if sort and sort.lower() not in ('all', 'default'):
                 sort_map = {
                     'rating': 'rating',
@@ -618,8 +628,8 @@ def application(environ, start_response):
                     seen.add(c["id"])
                     if manga_type and manga_type.lower() not in ('all', 'semua'):
                         c["type"] = manga_type.capitalize()
-                    if genre and genre.lower() not in ('all', 'semua'):
-                        c["genres"] = [genre.capitalize()]
+                    if norm_genre:
+                        c["genres"] = [norm_genre]
                     data.append(c)
             last_page = 1
             pages = re.findall(r'page=(\d+)', content)

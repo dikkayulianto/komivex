@@ -21,7 +21,7 @@ DEFAULT_CONFIG = {
     "meta_title": "Komivex - Baca Manga Terpopuler",
     "meta_description": "Platform baca komik (Manga, Manhua, Manhwa) terpopuler dan terlengkap gratis bahasa Indonesia dengan antarmuka modern dan premium.",
     "verification_code": "",
-    "scraper_target_domain": "https://v7.voratoon.com",
+    "scraper_target_domain": "https://v8.voratoon.com",
     "custom_ad_codes": {
         "head": "",
         "body": "",
@@ -48,8 +48,8 @@ if os.path.exists(CONFIG_FILE):
 
 def get_scraper_domain():
     domain = site_config.get("scraper_target_domain", "").strip().rstrip('/')
-    if not domain or any(x in domain for x in ["bacakomik", "shinigami", "komikcast.info", "v6.voratoon"]):
-        domain = "https://v7.voratoon.com"
+    if not domain or any(x in domain for x in ["bacakomik", "shinigami", "komikcast.info", "v6.voratoon", "v7.voratoon"]):
+        domain = "https://v8.voratoon.com"
     return domain
 
 # Bypass SSL verify for secure connections (e.g. MangaDex/CDN SSL mismatches)
@@ -551,8 +551,18 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
                     query_parts.append(f"page={page}")
                 if manga_type and manga_type.lower() not in ('all', 'semua'):
                     query_parts.append(f"format={manga_type.lower()}")
+                norm_genre = ""
                 if genre and genre.lower() not in ('all', 'semua'):
-                    query_parts.append(f"genre={urllib.parse.quote(genre)}")
+                    norm_genre = genre.strip()
+                    if norm_genre.lower() == 'slice of life':
+                        norm_genre = 'Slice of Life'
+                    elif norm_genre.lower() == 'sci-fi':
+                        norm_genre = 'Sci-Fi'
+                    elif norm_genre.lower() == 'martial arts':
+                        norm_genre = 'Martial Arts'
+                    else:
+                        norm_genre = norm_genre.title()
+                    query_parts.append(f"genre={urllib.parse.quote(norm_genre)}")
                 if sort and sort.lower() not in ('all', 'default'):
                     sort_map = {
                         'rating': 'rating',
@@ -578,8 +588,8 @@ class ScraperHandler(http.server.SimpleHTTPRequestHandler):
                         seen_slugs.add(card["id"])
                         if manga_type and manga_type.lower() not in ('all', 'semua'):
                             card["type"] = manga_type.capitalize()
-                        if genre and genre.lower() not in ('all', 'semua'):
-                            card["genres"] = [genre.capitalize()]
+                        if norm_genre:
+                            card["genres"] = [norm_genre]
                         paginated_data.append(card)
                     
                 # Detect max pages

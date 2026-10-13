@@ -3042,6 +3042,11 @@ function init() {
                 btn.setAttribute("data-value", genre);
             }
             btn.textContent = genre;
+            btn.addEventListener("click", () => {
+                activeFilters.genre = btn.getAttribute("data-value");
+                updateFilterActiveUI("genre", activeFilters.genre);
+                handleFilterChange();
+            });
             genreContainer.appendChild(btn);
         });
     }
