@@ -79,6 +79,26 @@ HEADERS = {
     'Connection': 'keep-alive',
 }
 
+ALL_GENRES = [
+    "4-Koma", "Action", "Adult", "Adventure", "Comedy", "Cooking", 
+    "Demons", "Drama", "Ecchi", "Fantasy", "Game", "Gender Bender", "Gore", 
+    "Harem", "Historical", "Horror", "Isekai", "Josei", "Magic", "Martial Arts", 
+    "Mature", "Mecha", "Medical", "Military", "Music", "Mystery", "One-Shot", 
+    "Police", "Psychological", "Reincarnation", "Romance", "School", "School Life", 
+    "Sci-Fi", "Seinen", "Shoujo", "Shoujo Ai", "Shounen", "Shounen Ai", 
+    "Slice of Life", "Sports", "Super Power", "Supernatural", "Thriller", 
+    "Tragedy", "Vampire", "Webtoons", "Yuri"
+]
+GENRE_NORM_MAP = {g.lower(): g for g in ALL_GENRES}
+for g in ALL_GENRES:
+    GENRE_NORM_MAP[g.lower().replace(' ', '-')] = g
+
+def normalize_genre(genre):
+    if not genre:
+        return ""
+    g_key = genre.strip().lower()
+    return GENRE_NORM_MAP.get(g_key, genre.strip().title())
+
 
 def fetch_html(url):
     req = urllib.request.Request(url, headers=HEADERS)
@@ -591,15 +611,7 @@ def application(environ, start_response):
                 query_parts_cat.append(f"format={manga_type.lower()}")
             norm_genre = ""
             if genre and genre.lower() not in ('all', 'semua'):
-                norm_genre = genre.strip()
-                if norm_genre.lower() == 'slice of life':
-                    norm_genre = 'Slice of Life'
-                elif norm_genre.lower() == 'sci-fi':
-                    norm_genre = 'Sci-Fi'
-                elif norm_genre.lower() == 'martial arts':
-                    norm_genre = 'Martial Arts'
-                else:
-                    norm_genre = norm_genre.title()
+                norm_genre = normalize_genre(genre)
                 query_parts_cat.append(f"genre={urllib.parse.quote(norm_genre)}")
             if sort and sort.lower() not in ('all', 'default'):
                 sort_map = {

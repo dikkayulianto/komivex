@@ -3021,13 +3021,16 @@ function init() {
     applyAllAdCodes();
     renderSidebarWidgets();
 
-    // Dynamically render comprehensive genres list
+    // Dynamically render comprehensive genres list (matching 100% Voratoon catalog)
     const genresList = [
-        "Semua", "Action", "Adventure", "Comedy", "Drama", "Fantasy", 
-        "Harem", "Historical", "Isekai", "Magic", "Martial Arts", 
-        "Mystery", "Psychological", "Romance", "Sci-Fi", "Seinen", 
-        "Shoujo", "Shounen", "Slice of Life", "Sports", "Supernatural", 
-        "Thriller", "Tragedy"
+        "Semua", "4-Koma", "Action", "Adult", "Adventure", "Comedy", "Cooking", 
+        "Demons", "Drama", "Ecchi", "Fantasy", "Game", "Gender Bender", "Gore", 
+        "Harem", "Historical", "Horror", "Isekai", "Josei", "Magic", "Martial Arts", 
+        "Mature", "Mecha", "Medical", "Military", "Music", "Mystery", "One-Shot", 
+        "Police", "Psychological", "Reincarnation", "Romance", "School", "School Life", 
+        "Sci-Fi", "Seinen", "Shoujo", "Shoujo Ai", "Shounen", "Shounen Ai", 
+        "Slice of Life", "Sports", "Super Power", "Supernatural", "Thriller", 
+        "Tragedy", "Vampire", "Webtoons", "Yuri"
     ];
     const genreContainer = document.getElementById("filter-genre");
     if (genreContainer) {
@@ -3067,11 +3070,16 @@ function init() {
         }
         const genreParam = getQueryParam("genre");
         if (genreParam) {
-            const matchedGenre = genresList.find(g => g.toLowerCase() === genreParam.toLowerCase());
-            if (matchedGenre) {
-                activeFilters.genre = matchedGenre === "Semua" ? "all" : matchedGenre;
-                updateFilterActiveUI("genre", activeFilters.genre);
+            const cleanParam = decodeURIComponent(genreParam).replace(/-/g, ' ').trim().toLowerCase();
+            const matchedGenre = genresList.find(g => g.toLowerCase() === cleanParam || g.toLowerCase() === genreParam.toLowerCase());
+            if (matchedGenre && matchedGenre !== "Semua") {
+                activeFilters.genre = matchedGenre;
+            } else if (matchedGenre === "Semua") {
+                activeFilters.genre = "all";
+            } else {
+                activeFilters.genre = cleanParam.replace(/\b\w/g, l => l.toUpperCase());
             }
+            updateFilterActiveUI("genre", activeFilters.genre);
         }
         const sortParam = getQueryParam("sort");
         if (sortParam) {
