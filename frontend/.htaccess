@@ -1,0 +1,25 @@
+# .htaccess untuk Komivex di cPanel (Phusion Passenger / Python App)
+PassengerEnabled On
+PassengerAppRoot /home/fhcbnx02ql/public_html
+PassengerBaseURI /
+
+# Proteksi file sensitif - tidak boleh diakses langsung dari browser
+<Files "config.json">
+    Require all denied
+</Files>
+
+# Bypass Passenger untuk file statis aset
+<FilesMatch "\.(css|js|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|webp|xml)$">
+    PassengerEnabled Off
+</FilesMatch>
+
+RewriteEngine On
+
+# Fail-safe instan: Jika file HTML (seperti manga.html) kosong (0 byte) atau hilang,
+# layani index.html secara internal tanpa merubah URL di browser.
+RewriteCond %{REQUEST_FILENAME} !-s
+RewriteRule \.html$ index.html [L]
+
+# Redirect request API dan non-file ke WSGI app
+RewriteCond %{REQUEST_FILENAME} !-s
+RewriteRule ^(.*)$ passenger_wsgi.py/$1 [QSA,L]
