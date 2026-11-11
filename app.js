@@ -1506,16 +1506,17 @@ async function openChapterReader(mangaId, chapterNumber) {
                 images.forEach((imgUrl, index) => {
                     const img = document.createElement("img");
                     img.className = "reader-img";
+                    img.alt = `Halaman ${index + 1}`;
+                    img.loading = "lazy";
+                    img.onerror = () => {
+                        img.onerror = null;
+                        img.src = "assets/manga_cover_1.jpg";
+                    };
                     if (imgUrl.startsWith("/api/proxy-img")) {
                         img.src = imgUrl;
                     } else {
                         img.src = `/api/proxy-img?url=${encodeURIComponent(imgUrl)}`;
                     }
-                    img.alt = `Halaman ${index + 1}`;
-                    img.loading = "lazy";
-                    img.onerror = () => {
-                        img.src = "assets/manga_cover_1.jpg";
-                    };
                     imagesContainer.appendChild(img);
                 });
             }

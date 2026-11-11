@@ -2,10 +2,12 @@ import sys
 import os
 import urllib.request
 import urllib.parse
+import urllib.error
 import re
 import json
 import mimetypes
 import ssl
+import time
 
 # ─────────────────────────────────────────────
 # Path Setup (agar semua import dari folder ini)
@@ -32,7 +34,7 @@ DEFAULT_CONFIG = {
     "meta_title": "Komivex - Baca Manga Terpopuler",
     "meta_description": "Platform baca komik (Manga, Manhua, Manhwa) terpopuler dan terlengkap gratis bahasa Indonesia.",
     "verification_code": "",
-    "scraper_target_domain": "https://v8.voratoon.com",
+    "scraper_target_domain": "https://13.voratoon.com",
     "custom_ad_codes": {
         "head": "",
         "body": "",
@@ -58,11 +60,43 @@ if os.path.exists(CONFIG_FILE):
         print("Error loading config:", e)
 
 
+_resolved_domain_cache = {"base": None, "resolved": None, "ts": 0.0}
+
+
 def get_scraper_domain():
     domain = site_config.get("scraper_target_domain", "").strip().rstrip('/')
-    if not domain or any(x in domain for x in ["bacakomik", "shinigami", "komikcast.info", "v6.voratoon", "v7.voratoon"]):
-        domain = "https://v8.voratoon.com"
+    if not domain or any(x in domain for x in ["bacakomik", "shinigami", "komikcast.info", "v6.voratoon", "v7.voratoon", "v8.voratoon"]):
+        domain = "https://13.voratoon.com"
+    if _resolved_domain_cache["base"] == domain and _resolved_domain_cache["resolved"] and (time.time() - _resolved_domain_cache["ts"] < 1800):
+        return _resolved_domain_cache["resolved"]
     return domain
+
+
+def _record_redirected_domain(base_domain, final_url):
+    parsed = urllib.parse.urlparse(final_url)
+    if parsed.scheme and parsed.netloc:
+        resolved = f"{parsed.scheme}://{parsed.netloc}".rstrip('/')
+        _resolved_domain_cache["base"] = base_domain
+        _resolved_domain_cache["resolved"] = resolved
+        _resolved_domain_cache["ts"] = time.time()
+        return resolved
+    return base_domain
+
+
+def resolve_scraper_domain(force=False):
+    base = site_config.get("scraper_target_domain", "").strip().rstrip('/')
+    if not base or any(x in base for x in ["bacakomik", "shinigami", "komikcast.info", "v6.voratoon", "v7.voratoon", "v8.voratoon"]):
+        base = "https://13.voratoon.com"
+    if not force and _resolved_domain_cache["base"] == base and _resolved_domain_cache["resolved"] and (time.time() - _resolved_domain_cache["ts"] < 1800):
+        return _resolved_domain_cache["resolved"]
+    for method in ("HEAD", "GET"):
+        try:
+            req = urllib.request.Request(f"{base}/", headers=HEADERS, method=method)
+            with urllib.request.urlopen(req, context=ctx, timeout=6) as res:
+                return _record_redirected_domain(base, res.geturl())
+        except Exception:
+            continue
+    return base
 
 
 # ─────────────────────────────────────────────
@@ -106,6 +140,9 @@ def fetch_html(url):
         final_url = res.geturl()
         orig_parsed = urllib.parse.urlparse(url)
         final_parsed = urllib.parse.urlparse(final_url)
+        if orig_parsed.netloc and final_parsed.netloc and orig_parsed.netloc != final_parsed.netloc:
+            base = f"{orig_parsed.scheme}://{orig_parsed.netloc}"
+            _record_redirected_domain(base, final_url)
         # If redirected and query params were dropped by remote server, re-request with query params
         if orig_parsed.query and not final_parsed.query:
             new_url = urllib.parse.urlunparse((
@@ -737,7 +774,7 @@ def application(environ, start_response):
         try:
             import html as html_lib
             img_url = html_lib.unescape(img_url)
-            domain = get_scraper_domain()
+            domain = resolve_scraper_domain()
 
             # Unwrap Voratoon resizer /api/cover?src=... to direct S3/CDN cover
             if '/api/cover' in img_url and 'src=' in img_url:
@@ -752,18 +789,53 @@ def application(environ, start_response):
             elif img_url.startswith('/'):
                 img_url = f"{domain}{img_url}"
 
-            req = urllib.request.Request(img_url, headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Referer': domain + '/'
-            })
-            with urllib.request.urlopen(req, context=ctx, timeout=15) as resp:
-                ctype = resp.headers.get('Content-Type', 'image/jpeg')
-                start_response('200 OK', [
-                    ('Content-Type', ctype),
-                    ('Cache-Control', 'public, max-age=86400'),
-                    ('Access-Control-Allow-Origin', '*'),
-                ])
-                return [resp.read()]
+            img_parsed = urllib.parse.urlparse(img_url)
+            img_origin = f"{img_parsed.scheme}://{img_parsed.netloc}/" if img_parsed.scheme and img_parsed.netloc else None
+
+            def fetch_image_with_referer(referer):
+                hdrs = {'User-Agent': HEADERS['User-Agent']}
+                if referer:
+                    hdrs['Referer'] = referer
+                req = urllib.request.Request(img_url, headers=hdrs)
+                with urllib.request.urlopen(req, context=ctx, timeout=12) as resp:
+                    return resp.headers.get('Content-Type', 'image/jpeg'), resp.read()
+
+            candidates = [domain + '/']
+            data = None
+            ctype = 'image/jpeg'
+            last_err = None
+            tried = set()
+            idx = 0
+            while idx < len(candidates):
+                ref = candidates[idx]
+                idx += 1
+                if ref in tried:
+                    continue
+                tried.add(ref)
+                try:
+                    ctype, data = fetch_image_with_referer(ref)
+                    break
+                except urllib.error.HTTPError as he:
+                    last_err = he
+                    if he.code in (401, 403):
+                        if idx == 1:
+                            fresh_domain = resolve_scraper_domain(force=True)
+                            candidates.append(fresh_domain + '/')
+                            if img_origin:
+                                candidates.append(img_origin)
+                            candidates.append(None)
+                        continue
+                    raise
+
+            if data is None:
+                raise last_err if last_err else Exception('Failed to fetch image')
+
+            start_response('200 OK', [
+                ('Content-Type', ctype),
+                ('Cache-Control', 'public, max-age=86400'),
+                ('Access-Control-Allow-Origin', '*'),
+            ])
+            return [data]
         except Exception as e:
             return error_response(start_response, '500 Internal Server Error', str(e))
 
